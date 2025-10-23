@@ -12,6 +12,9 @@ import {
   Phone,
   MessageSquarePlus,
   MessageSquare,
+  IndianRupee,
+  FileText,
+  TrendingUp,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -40,6 +43,9 @@ const adminMenuItems = [
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },
   { title: "Billing", url: "/billing", icon: Receipt },
+  { title: "Leases", url: "/leases", icon: IndianRupee },
+  { title: "Expenses", url: "/expenses", icon: FileText },
+  { title: "Financials", url: "/financials", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
@@ -54,6 +60,9 @@ const managerMenuItems = [
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },
   { title: "Billing", url: "/billing", icon: Receipt },
+  { title: "Leases", url: "/leases", icon: IndianRupee },
+  { title: "Expenses", url: "/expenses", icon: FileText },
+  { title: "Financials", url: "/financials", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
 

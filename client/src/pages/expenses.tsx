@@ -74,7 +74,9 @@ export default function Expenses() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/expenses" 
+      });
       setIsDialogOpen(false);
       expenseForm.reset({
         propertyId: 0,
@@ -102,7 +104,9 @@ export default function Expenses() {
       await apiRequest("DELETE", `/api/expenses/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/expenses" 
+      });
       toast({
         title: "Expense deleted",
         description: "The expense has been deleted successfully.",
