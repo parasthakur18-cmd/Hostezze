@@ -412,32 +412,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("=== Active Bookings API Called ===");
       
-      // Get all checked-in bookings using raw SQL to avoid type issues
-      const activeBookingsQuery = await db.execute(sql`
-        SELECT * FROM bookings WHERE status = 'checked-in' ORDER BY created_at DESC
-      `);
-      
-      const activeBookings = activeBookingsQuery.rows;
-      console.log(`Found ${activeBookings.length} checked-in bookings`);
+      // Get all bookings and filter for checked-in
+      const allBookings = await storage.getAllBookings();
+      const activeBookings = allBookings.filter(b => b.status === "checked-in");
+      console.log(`Found ${activeBookings.length} checked-in bookings out of ${allBookings.length} total`);
 
       // If no active bookings, return empty array
       if (activeBookings.length === 0) {
+        console.log("No active bookings, returning empty array");
         return res.json([]);
       }
 
-      // Get all necessary data
+      console.log("Fetching guests, rooms, properties...");
       const allGuests = await storage.getAllGuests();
       const allRooms = await storage.getAllRooms();
       const allProperties = await storage.getAllProperties();
+      console.log(`Fetched ${allGuests.length} guests, ${allRooms.length} rooms, ${allProperties.length} properties`);
       
-      // Get orders and extras using raw SQL to avoid type issues
-      const ordersQuery = await db.execute(sql`SELECT * FROM orders`);
-      const allOrders = ordersQuery.rows;
-      console.log(`Fetched ${allOrders.length} orders`);
+      // Get orders and extras with individual error handling
+      console.log("Fetching orders...");
+      let allOrders: any[] = [];
+      try {
+        allOrders = await db.select().from(orders);
+        console.log(`Fetched ${allOrders.length} orders successfully`);
+      } catch (ordersErr: any) {
+        console.error("ERROR fetching orders:", ordersErr.message);
+        allOrders = [];
+      }
       
-      const extrasQuery = await db.execute(sql`SELECT * FROM extra_services`);
-      const allExtras = extrasQuery.rows;
-      console.log(`Fetched ${allExtras.length} extra services`);
+      console.log("Fetching extra services...");
+      let allExtras: any[] = [];
+      try {
+        allExtras = await db.select().from(extraServices);
+        console.log(`Fetched ${allExtras.length} extra services successfully`);
+      } catch (extrasErr: any) {
+        console.error("ERROR fetching extras:", extrasErr.message);
+        allExtras = [];
+      }
 
       // Build enriched active booking data
       const enrichedBookings = activeBookings.filter(booking => {
@@ -510,7 +521,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(enrichedBookings);
     } catch (error: any) {
-      console.error("Active bookings error:", error);
+      console.error("=== ACTIVE BOOKINGS ERROR ===");
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+      console.error("Full error:", JSON.stringify(error, null, 2));
       res.status(500).json({ message: error.message });
     }
   });
