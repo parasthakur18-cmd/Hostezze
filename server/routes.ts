@@ -167,6 +167,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/rooms/checked-in-guests", isAuthenticated, async (req, res) => {
+    try {
+      const roomsWithGuests = await storage.getRoomsWithCheckedInGuests();
+      res.json(roomsWithGuests);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/rooms/:id", isAuthenticated, async (req, res) => {
     try {
       const room = await storage.getRoom(parseInt(req.params.id));
