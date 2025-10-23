@@ -9,6 +9,9 @@ import {
   extraServices,
   bills,
   enquiries,
+  propertyLeases,
+  leasePayments,
+  propertyExpenses,
   type User,
   type UpsertUser,
   type Property,
@@ -29,6 +32,12 @@ import {
   type InsertBill,
   type Enquiry,
   type InsertEnquiry,
+  type PropertyLease,
+  type InsertPropertyLease,
+  type LeasePayment,
+  type InsertLeasePayment,
+  type PropertyExpense,
+  type InsertPropertyExpense,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, lt, gt, sql } from "drizzle-orm";
@@ -107,6 +116,30 @@ export interface IStorage {
   updateEnquiryStatus(id: number, status: string): Promise<Enquiry>;
   deleteEnquiry(id: number): Promise<void>;
   getAvailableRoomsForDates(propertyId: number, checkIn: Date, checkOut: Date): Promise<Room[]>;
+
+  // Property Lease operations
+  getAllLeases(): Promise<PropertyLease[]>;
+  getLeasesByProperty(propertyId: number): Promise<PropertyLease[]>;
+  getLease(id: number): Promise<PropertyLease | undefined>;
+  createLease(lease: InsertPropertyLease): Promise<PropertyLease>;
+  updateLease(id: number, lease: Partial<InsertPropertyLease>): Promise<PropertyLease>;
+  deleteLease(id: number): Promise<void>;
+  getLeaseWithPayments(id: number): Promise<any>;
+
+  // Lease Payment operations
+  getLeasePayments(leaseId: number): Promise<LeasePayment[]>;
+  createLeasePayment(payment: InsertLeasePayment): Promise<LeasePayment>;
+  deleteLeasePayment(id: number): Promise<void>;
+
+  // Property Expense operations
+  getAllExpenses(): Promise<PropertyExpense[]>;
+  getExpensesByProperty(propertyId: number): Promise<PropertyExpense[]>;
+  createExpense(expense: InsertPropertyExpense): Promise<PropertyExpense>;
+  updateExpense(id: number, expense: Partial<InsertPropertyExpense>): Promise<PropertyExpense>;
+  deleteExpense(id: number): Promise<void>;
+
+  // Financial Reports
+  getPropertyFinancials(propertyId: number, startDate?: Date, endDate?: Date): Promise<any>;
 
   // Dashboard stats
   getDashboardStats(): Promise<any>;
@@ -521,6 +554,186 @@ export class DatabaseStorage implements IStorage {
 
     const bookedRoomIds = new Set(overlappingBookings.map(b => b.roomId).filter(id => id !== null));
     return allRooms.filter(room => !bookedRoomIds.has(room.id));
+  }
+
+  // Property Lease operations
+  async getAllLeases(): Promise<PropertyLease[]> {
+    return await db.select().from(propertyLeases).orderBy(desc(propertyLeases.createdAt));
+  }
+
+  async getLeasesByProperty(propertyId: number): Promise<PropertyLease[]> {
+    return await db.select().from(propertyLeases)
+      .where(eq(propertyLeases.propertyId, propertyId))
+      .orderBy(desc(propertyLeases.startDate));
+  }
+
+  async getLease(id: number): Promise<PropertyLease | undefined> {
+    const [lease] = await db.select().from(propertyLeases).where(eq(propertyLeases.id, id));
+    return lease;
+  }
+
+  async createLease(leaseData: InsertPropertyLease): Promise<PropertyLease> {
+    const [lease] = await db.insert(propertyLeases).values(leaseData).returning();
+    return lease;
+  }
+
+  async updateLease(id: number, leaseData: Partial<InsertPropertyLease>): Promise<PropertyLease> {
+    const [lease] = await db
+      .update(propertyLeases)
+      .set({ ...leaseData, updatedAt: new Date() })
+      .where(eq(propertyLeases.id, id))
+      .returning();
+    return lease;
+  }
+
+  async deleteLease(id: number): Promise<void> {
+    await db.delete(propertyLeases).where(eq(propertyLeases.id, id));
+  }
+
+  async getLeaseWithPayments(id: number): Promise<any> {
+    const lease = await this.getLease(id);
+    if (!lease) return null;
+
+    const payments = await this.getLeasePayments(id);
+    const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const totalAmount = parseFloat(lease.totalAmount);
+    const pendingBalance = totalAmount - totalPaid;
+
+    return {
+      ...lease,
+      payments,
+      totalPaid,
+      pendingBalance,
+    };
+  }
+
+  // Lease Payment operations
+  async getLeasePayments(leaseId: number): Promise<LeasePayment[]> {
+    return await db.select().from(leasePayments)
+      .where(eq(leasePayments.leaseId, leaseId))
+      .orderBy(desc(leasePayments.paymentDate));
+  }
+
+  async createLeasePayment(paymentData: InsertLeasePayment): Promise<LeasePayment> {
+    const [payment] = await db.insert(leasePayments).values(paymentData).returning();
+    return payment;
+  }
+
+  async deleteLeasePayment(id: number): Promise<void> {
+    await db.delete(leasePayments).where(eq(leasePayments.id, id));
+  }
+
+  // Property Expense operations
+  async getAllExpenses(): Promise<PropertyExpense[]> {
+    return await db.select().from(propertyExpenses).orderBy(desc(propertyExpenses.expenseDate));
+  }
+
+  async getExpensesByProperty(propertyId: number): Promise<PropertyExpense[]> {
+    return await db.select().from(propertyExpenses)
+      .where(eq(propertyExpenses.propertyId, propertyId))
+      .orderBy(desc(propertyExpenses.expenseDate));
+  }
+
+  async createExpense(expenseData: InsertPropertyExpense): Promise<PropertyExpense> {
+    const [expense] = await db.insert(propertyExpenses).values(expenseData).returning();
+    return expense;
+  }
+
+  async updateExpense(id: number, expenseData: Partial<InsertPropertyExpense>): Promise<PropertyExpense> {
+    const [expense] = await db
+      .update(propertyExpenses)
+      .set({ ...expenseData, updatedAt: new Date() })
+      .where(eq(propertyExpenses.id, id))
+      .returning();
+    return expense;
+  }
+
+  async deleteExpense(id: number): Promise<void> {
+    await db.delete(propertyExpenses).where(eq(propertyExpenses.id, id));
+  }
+
+  // Financial Reports
+  async getPropertyFinancials(propertyId: number, startDate?: Date, endDate?: Date): Promise<any> {
+    const start = startDate || new Date(new Date().getFullYear(), 0, 1); // Default to start of year
+    const end = endDate || new Date(); // Default to today
+
+    // Get total revenue from bills
+    const [revenueResult] = await db
+      .select({ total: sql<string>`COALESCE(SUM(total_amount), 0)` })
+      .from(bills)
+      .innerJoin(bookings, eq(bills.bookingId, bookings.id))
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          gte(bills.createdAt, start),
+          lte(bills.createdAt, end)
+        )
+      );
+
+    // Get total expenses
+    const [expensesResult] = await db
+      .select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
+      .from(propertyExpenses)
+      .where(
+        and(
+          eq(propertyExpenses.propertyId, propertyId),
+          gte(propertyExpenses.expenseDate, start),
+          lte(propertyExpenses.expenseDate, end)
+        )
+      );
+
+    // Get lease payments made
+    const leases = await this.getLeasesByProperty(propertyId);
+    let totalLeasePayments = 0;
+    for (const lease of leases) {
+      const payments = await db
+        .select()
+        .from(leasePayments)
+        .where(
+          and(
+            eq(leasePayments.leaseId, lease.id),
+            gte(leasePayments.paymentDate, start),
+            lte(leasePayments.paymentDate, end)
+          )
+        );
+      totalLeasePayments += payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    }
+
+    // Get expenses by category
+    const expensesByCategory = await db
+      .select({
+        category: propertyExpenses.category,
+        total: sql<string>`SUM(amount)`,
+      })
+      .from(propertyExpenses)
+      .where(
+        and(
+          eq(propertyExpenses.propertyId, propertyId),
+          gte(propertyExpenses.expenseDate, start),
+          lte(propertyExpenses.expenseDate, end)
+        )
+      )
+      .groupBy(propertyExpenses.category);
+
+    const totalRevenue = parseFloat(revenueResult?.total || '0');
+    const totalExpenses = parseFloat(expensesResult?.total || '0') + totalLeasePayments;
+    const netProfit = totalRevenue - totalExpenses;
+
+    return {
+      propertyId,
+      startDate: start,
+      endDate: end,
+      totalRevenue,
+      totalExpenses,
+      totalLeasePayments,
+      totalOtherExpenses: parseFloat(expensesResult?.total || '0'),
+      netProfit,
+      profitMargin: totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(2) : '0',
+      expensesByCategory: expensesByCategory.map(c => ({
+        category: c.category,
+        total: parseFloat(c.total),
+      })),
+    };
   }
 
   // Dashboard stats
