@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Calendar, User, Hotel, Receipt } from "lucide-react";
+import { Plus, Calendar, User, Hotel, Receipt, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -37,6 +37,7 @@ export default function Bookings() {
   const [checkoutBookingId, setCheckoutBookingId] = useState<number | null>(null);
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
@@ -53,8 +54,12 @@ export default function Bookings() {
 
   const { data: rooms } = useQuery<Room[]>({
     queryKey: ["/api/rooms"],
-    enabled: !!selectedProperty,
   });
+
+  // Get available rooms for the selected property (for booking form)
+  const availableRooms = rooms?.filter(r => 
+    selectedProperty && r.propertyId === selectedProperty && r.status === "available"
+  );
 
   const form = useForm<InsertBooking>({
     resolver: zodResolver(insertBookingSchema),
@@ -156,8 +161,6 @@ export default function Bookings() {
     createMutation.mutate(data);
   };
 
-  const availableRooms = rooms?.filter((room) => room.status === "available");
-
   if (isLoading) {
     return (
       <div className="p-6 md:p-8">
@@ -171,20 +174,49 @@ export default function Bookings() {
     );
   }
 
+  // Filter bookings based on search query
+  const filteredBookings = bookings?.filter((booking) => {
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const property = properties?.find(p => p.id === booking.propertyId);
+    const guest = guests?.find(g => g.id === booking.guestId);
+    const room = rooms?.find(r => r.id === booking.roomId);
+    
+    return (
+      guest?.fullName?.toLowerCase().includes(query) ||
+      guest?.phone?.toLowerCase().includes(query) ||
+      property?.name?.toLowerCase().includes(query) ||
+      room?.roomNumber?.toLowerCase().includes(query) ||
+      booking.status?.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="p-6 md:p-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold font-serif">Bookings</h1>
           <p className="text-muted-foreground mt-1">Manage reservations and check-ins</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-booking">
-              <Plus className="h-4 w-4 mr-2" />
-              New Booking
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-none md:w-80">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by guest, property, room, or status..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-bookings"
+            />
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-booking">
+                <Plus className="h-4 w-4 mr-2" />
+                New Booking
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Booking</DialogTitle>
@@ -456,24 +488,25 @@ export default function Bookings() {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
-      {!bookings || bookings.length === 0 ? (
+      {!filteredBookings || filteredBookings.length === 0 ? (
         <Card className="p-12 text-center">
           <div className="flex flex-col items-center gap-4">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Calendar className="h-10 w-10" />
             </div>
-            <h3 className="text-xl font-semibold">No bookings yet</h3>
+            <h3 className="text-xl font-semibold">{searchQuery ? "No bookings found" : "No bookings yet"}</h3>
             <p className="text-muted-foreground max-w-md">
-              Create your first booking to get started
+              {searchQuery ? "Try adjusting your search query" : "Create your first booking to get started"}
             </p>
           </div>
         </Card>
       ) : (
         <div className="space-y-4">
-          {bookings.map((booking) => {
+          {filteredBookings.map((booking) => {
             const property = properties?.find((p) => p.id === booking.propertyId);
             const guest = guests?.find((g) => g.id === booking.guestId);
             const room = rooms?.find((r) => r.id === booking.roomId);
