@@ -248,6 +248,9 @@ export const bills = pgTable("bills", {
   gstAmount: decimal("gst_amount", { precision: 10, scale: 2 }).notNull(),
   serviceChargeRate: decimal("service_charge_rate", { precision: 5, scale: 2 }).notNull().default("10"),
   serviceChargeAmount: decimal("service_charge_amount", { precision: 10, scale: 2 }).notNull(),
+  discountType: varchar("discount_type", { length: 20 }), // "percentage" or "fixed"
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }), // The % or fixed amount entered
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"), // The calculated discount amount
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   advancePaid: decimal("advance_paid", { precision: 10, scale: 2 }).notNull().default("0"), // Advance amount received at booking
   balanceAmount: decimal("balance_amount", { precision: 10, scale: 2 }).notNull().default("0"), // Remaining amount to be paid

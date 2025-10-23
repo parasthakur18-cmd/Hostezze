@@ -8,6 +8,7 @@ import { Hotel, User, Calendar, DollarSign, UtensilsCrossed, LogOut, Phone } fro
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 
@@ -66,14 +67,26 @@ export default function ActiveBookings() {
     booking: null,
   });
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [discountType, setDiscountType] = useState<string>("none");
+  const [discountValue, setDiscountValue] = useState<string>("");
 
   const { data: activeBookings, isLoading } = useQuery<ActiveBooking[]>({
     queryKey: ["/api/bookings/active"],
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async ({ bookingId, paymentMethod }: { bookingId: number; paymentMethod: string }) => {
-      return await apiRequest("POST", "/api/bookings/checkout", { bookingId, paymentMethod });
+    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue }: { 
+      bookingId: number; 
+      paymentMethod: string;
+      discountType?: string;
+      discountValue?: number;
+    }) => {
+      return await apiRequest("POST", "/api/bookings/checkout", { 
+        bookingId, 
+        paymentMethod,
+        discountType: discountType === "none" ? null : discountType,
+        discountValue: discountType === "none" ? null : discountValue,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings/active"] });
@@ -84,6 +97,8 @@ export default function ActiveBookings() {
       });
       setCheckoutDialog({ open: false, booking: null });
       setPaymentMethod("cash");
+      setDiscountType("none");
+      setDiscountValue("");
     },
     onError: (error: any) => {
       toast({
@@ -99,7 +114,22 @@ export default function ActiveBookings() {
     checkoutMutation.mutate({
       bookingId: checkoutDialog.booking.id,
       paymentMethod,
+      discountType: discountType === "none" ? undefined : discountType,
+      discountValue: discountType === "none" || !discountValue ? undefined : parseFloat(discountValue),
     });
+  };
+
+  // Calculate discount amount in real-time
+  const calculateDiscount = (totalAmount: number, type: string, value: string) => {
+    if (type === "none" || !value) return 0;
+    const discountVal = parseFloat(value);
+    if (isNaN(discountVal)) return 0;
+    
+    if (type === "percentage") {
+      return (totalAmount * discountVal) / 100;
+    } else {
+      return discountVal;
+    }
   };
 
   if (isLoading) {
@@ -285,19 +315,84 @@ export default function ActiveBookings() {
                   <span>Total Amount</span>
                   <span>₹{checkoutDialog.booking.charges.totalAmount}</span>
                 </div>
-                {parseFloat(checkoutDialog.booking.charges.advancePaid) > 0 && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Advance Paid</span>
-                      <span className="text-green-600">-₹{checkoutDialog.booking.charges.advancePaid}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-destructive">
-                      <span>Balance Due</span>
-                      <span>₹{checkoutDialog.booking.charges.balanceAmount}</span>
-                    </div>
-                  </>
-                )}
+                {(() => {
+                  const discountAmt = calculateDiscount(
+                    parseFloat(checkoutDialog.booking.charges.totalAmount),
+                    discountType,
+                    discountValue
+                  );
+                  const finalTotal = parseFloat(checkoutDialog.booking.charges.totalAmount) - discountAmt;
+                  const advancePaid = parseFloat(checkoutDialog.booking.charges.advancePaid);
+                  const balanceDue = finalTotal - advancePaid;
+
+                  return (
+                    <>
+                      {discountAmt > 0 && (
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Discount {discountType === "percentage" ? `(${discountValue}%)` : "(Fixed)"}
+                            </span>
+                            <span className="text-green-600">-₹{discountAmt.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span>Amount After Discount</span>
+                            <span>₹{finalTotal.toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {advancePaid > 0 && (
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Advance Paid</span>
+                            <span className="text-green-600">-₹{checkoutDialog.booking.charges.advancePaid}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold text-destructive">
+                            <span>Balance Due</span>
+                            <span>₹{balanceDue.toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="discount-type">Discount Type</Label>
+                <Select value={discountType} onValueChange={(value) => {
+                  setDiscountType(value);
+                  if (value === "none") setDiscountValue("");
+                }}>
+                  <SelectTrigger id="discount-type" data-testid="select-discount-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {discountType !== "none" && (
+                <div className="space-y-2">
+                  <Label htmlFor="discount-value">
+                    Discount {discountType === "percentage" ? "Percentage" : "Amount"}
+                  </Label>
+                  <Input
+                    id="discount-value"
+                    type="number"
+                    step={discountType === "percentage" ? "0.01" : "1"}
+                    min="0"
+                    max={discountType === "percentage" ? "100" : undefined}
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder={discountType === "percentage" ? "Enter percentage (e.g., 10)" : "Enter amount (e.g., 500)"}
+                    data-testid="input-discount-value"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="payment-method">Payment Method</Label>
