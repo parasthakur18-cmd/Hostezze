@@ -27,6 +27,7 @@ import Leases from "@/pages/leases";
 import Expenses from "@/pages/expenses";
 import Financials from "@/pages/financials";
 import AddOnServices from "@/pages/addons";
+import UsersManagement from "@/pages/users";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -67,6 +68,7 @@ function Router() {
           <Route path="/financials" component={Financials} />
           <Route path="/addons" component={AddOnServices} />
           <Route path="/analytics" component={Analytics} />
+          <Route path="/users" component={UsersManagement} />
           <Route path="/settings" component={Settings} />
         </>
       )}

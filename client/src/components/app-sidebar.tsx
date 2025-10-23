@@ -16,6 +16,7 @@ import {
   FileText,
   TrendingUp,
   Plus,
+  UserCog,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -49,6 +50,7 @@ const adminMenuItems = [
   { title: "Expenses", url: "/expenses", icon: FileText },
   { title: "Financials", url: "/financials", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Users", url: "/users", icon: UserCog },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
