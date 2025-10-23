@@ -557,14 +557,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Property Lease operations
-  async getAllLeases(): Promise<PropertyLease[]> {
-    return await db.select().from(propertyLeases).orderBy(desc(propertyLeases.createdAt));
+  async getAllLeases(): Promise<any[]> {
+    const leasesData = await db.select().from(propertyLeases).orderBy(desc(propertyLeases.createdAt));
+    
+    // Add payment totals and balance for each lease
+    const leasesWithBalances = await Promise.all(
+      leasesData.map(async (lease) => {
+        const payments = await this.getLeasePayments(lease.id);
+        const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        const totalAmount = parseFloat(lease.totalAmount);
+        const pendingBalance = totalAmount - totalPaid;
+        
+        return {
+          ...lease,
+          totalPaid,
+          pendingBalance,
+        };
+      })
+    );
+    
+    return leasesWithBalances;
   }
 
-  async getLeasesByProperty(propertyId: number): Promise<PropertyLease[]> {
-    return await db.select().from(propertyLeases)
+  async getLeasesByProperty(propertyId: number): Promise<any[]> {
+    const leasesData = await db.select().from(propertyLeases)
       .where(eq(propertyLeases.propertyId, propertyId))
       .orderBy(desc(propertyLeases.startDate));
+    
+    // Add payment totals and balance for each lease
+    const leasesWithBalances = await Promise.all(
+      leasesData.map(async (lease) => {
+        const payments = await this.getLeasePayments(lease.id);
+        const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        const totalAmount = parseFloat(lease.totalAmount);
+        const pendingBalance = totalAmount - totalPaid;
+        
+        return {
+          ...lease,
+          totalPaid,
+          pendingBalance,
+        };
+      })
+    );
+    
+    return leasesWithBalances;
   }
 
   async getLease(id: number): Promise<PropertyLease | undefined> {

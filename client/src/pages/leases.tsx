@@ -145,9 +145,8 @@ export default function Leases() {
     return properties.find(p => p.id === propertyId)?.name || "Unknown";
   };
 
-  const calculateBalance = (lease: PropertyLease) => {
-    const leaseData = leases.find(l => l.id === lease.id);
-    return leaseData ? parseFloat(lease.totalAmount) : 0;
+  const calculateBalance = (lease: any) => {
+    return lease.pendingBalance || 0;
   };
 
   if (isLoading) {
@@ -337,6 +336,18 @@ export default function Leases() {
                         <span className="text-muted-foreground">Total Amount</span>
                         <span className="font-mono font-semibold" data-testid={`text-total-amount-${lease.id}`}>
                           ₹{totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Total Paid</span>
+                        <span className="font-mono text-green-600 dark:text-green-400" data-testid={`text-total-paid-${lease.id}`}>
+                          ₹{(lease.totalPaid || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm font-semibold">
+                        <span className="text-muted-foreground">Remaining Balance</span>
+                        <span className="font-mono text-orange-600 dark:text-orange-400" data-testid={`text-balance-${lease.id}`}>
+                          ₹{calculateBalance(lease).toLocaleString()}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">

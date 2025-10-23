@@ -2,7 +2,7 @@
 
 ## Overview
 
-A comprehensive property management system designed for mountain resort properties. The platform enables multi-property management, booking coordination, guest tracking, restaurant operations, and billing from a unified interface. Built with a modern SaaS architecture, it features a mountain resort-inspired design system with mobile-first responsiveness.
+A comprehensive property management system designed for mountain resort properties. The platform enables multi-property management, booking coordination, guest tracking, restaurant operations, and complete financial tracking from a unified interface. The financial module tracks property lease agreements with automatic balance calculation, records lease payments, manages property expenses across multiple categories (electricity, grocery, salaries, maintenance), and generates detailed P&L reports showing income, expenses, and profit/loss per property. Built with a modern SaaS architecture, it features a mountain resort-inspired design system with mobile-first responsiveness.
 
 ## User Preferences
 
@@ -48,7 +48,8 @@ Preferred communication style: Simple, everyday language.
 
 **API Structure**
 - Authentication routes: `/api/auth/*` (login, user profile)
-- Resource CRUD routes: `/api/{properties|rooms|bookings|guests|orders|bills}`
+- Resource CRUD routes: `/api/{properties|rooms|bookings|guests|orders|bills|leases|expenses}`
+- Financial routes: `/api/leases/:id/payments`, `/api/financials/:propertyId`
 - Aggregated data routes: `/api/dashboard/stats`, `/api/analytics`
 - Status update routes: `/api/orders/:id/status` for workflow management
 
@@ -80,9 +81,15 @@ Preferred communication style: Simple, everyday language.
 - **Orders**: Food order tracking with kitchen workflow statuses
 - **Bills**: Invoicing and payment status tracking
 - **Extra Services**: Additional billable services beyond room and food
+- **Property Leases**: Lease agreements with landlord details, total amount, start/end dates, payment frequency
+- **Lease Payments**: Individual lease payment records with amount, date, and method
+- **Property Expenses**: Operating expense tracking with category, amount, date, and property association
 
 **Data Relationships**
 - Properties → Rooms (one-to-many)
+- Properties → Leases (one-to-many)
+- Properties → Expenses (one-to-many)
+- Leases → Payments (one-to-many)
 - Guests → Bookings (one-to-many)
 - Rooms → Bookings (one-to-many)
 - Bookings → Bills (one-to-one)
@@ -92,6 +99,8 @@ Preferred communication style: Simple, everyday language.
 - Drizzle Zod integration generates insert schemas from table definitions
 - Client-side validation via React Hook Form + Zod resolvers
 - Server-side validation using the same Zod schemas (shared via `@shared/schema`)
+- Date coercion via `z.coerce.date()` for timestamp fields in leases, payments, and expenses
+- Backend validates all financial data with Zod schemas before database insertion
 
 ### Authentication & Authorization
 
