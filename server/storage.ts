@@ -31,7 +31,7 @@ import {
   type InsertEnquiry,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, gt, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -514,8 +514,8 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(bookings.propertyId, propertyId),
           sql`${bookings.status} IN ('confirmed', 'checked-in')`,
-          sql`${bookings.checkInDate} < ${checkOut}`,
-          sql`${bookings.checkOutDate} > ${checkIn}`
+          lt(bookings.checkInDate, checkOut),
+          gt(bookings.checkOutDate, checkIn)
         )
       );
 

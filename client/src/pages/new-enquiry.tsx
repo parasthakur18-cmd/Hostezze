@@ -52,9 +52,9 @@ const enquiryFormSchema = z.object({
   checkOutDate: z.date({
     required_error: "Please select check-out date",
   }),
-  roomId: z.coerce.number().int().min(1, "Please select a room"),
+  roomId: z.union([z.coerce.number().int().min(1), z.literal("")]).optional(),
   numberOfGuests: z.coerce.number().int().min(1, "At least 1 guest required"),
-  priceQuoted: z.coerce.number().min(0, "Price must be a positive number"),
+  priceQuoted: z.coerce.number().min(0, "Price must be a positive number").optional(),
   advanceAmount: z.coerce.number().min(0, "Advance must be a positive number").nullable().optional(),
   specialRequests: z.string().optional(),
 }).refine((data) => data.checkOutDate > data.checkInDate, {
@@ -148,9 +148,11 @@ export default function NewEnquiry() {
       guestEmail: data.guestEmail || null,
       checkInDate: data.checkInDate,
       checkOutDate: data.checkOutDate,
-      roomId: data.roomId,
+      roomId: data.roomId && typeof data.roomId === 'number' ? data.roomId : null,
       numberOfGuests: data.numberOfGuests,
-      priceQuoted: data.priceQuoted.toString(),
+      priceQuoted: data.priceQuoted !== undefined && data.priceQuoted !== null 
+        ? data.priceQuoted.toString() 
+        : null,
       advanceAmount: data.advanceAmount !== undefined && data.advanceAmount !== null 
         ? data.advanceAmount.toString() 
         : null,
@@ -299,8 +301,8 @@ export default function NewEnquiry() {
                         </div>
                       ) : (
                         <Select
-                          onValueChange={(value) => field.onChange(parseInt(value))}
-                          value={field.value?.toString() || ""}
+                          onValueChange={(value) => field.onChange(value ? parseInt(value) : "")}
+                          value={field.value ? field.value.toString() : ""}
                         >
                           <FormControl>
                             <SelectTrigger data-testid="select-room">
