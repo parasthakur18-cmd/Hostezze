@@ -133,6 +133,8 @@ export const bookings = pgTable("bookings", {
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   numberOfGuests: integer("number_of_guests").notNull().default(1),
   specialRequests: text("special_requests"),
+  customPrice: decimal("custom_price", { precision: 10, scale: 2 }), // Custom price per night (overrides room price if set)
+  advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }).notNull().default("0"), // Advance payment received
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
