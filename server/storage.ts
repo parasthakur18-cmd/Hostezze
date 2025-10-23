@@ -675,8 +675,8 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(bookings.propertyId, propertyId),
           sql`${bookings.status} IN ('confirmed', 'checked-in')`,
-          lt(bookings.checkInDate, checkOut),
-          gt(bookings.checkOutDate, checkIn)
+          sql`${bookings.checkInDate} < ${sql.raw(`'${checkOut.toISOString()}'::timestamp`)}`,
+          sql`${bookings.checkOutDate} > ${sql.raw(`'${checkIn.toISOString()}'::timestamp`)}`
         )
       );
 
