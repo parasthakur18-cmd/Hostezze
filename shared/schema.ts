@@ -242,6 +242,7 @@ export const bills = pgTable("bills", {
   paymentStatus: varchar("payment_status", { length: 20 }).notNull().default("unpaid"),
   paymentMethod: varchar("payment_method", { length: 50 }),
   paidAt: timestamp("paid_at"),
+  mergedBookingIds: integer("merged_booking_ids").array(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

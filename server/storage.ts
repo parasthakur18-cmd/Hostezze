@@ -110,6 +110,7 @@ export interface IStorage {
   getBillByBooking(bookingId: number): Promise<Bill | undefined>;
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: number, bill: Partial<InsertBill>): Promise<Bill>;
+  mergeBills(bookingIds: number[], primaryBookingId: number): Promise<Bill>;
 
   // Enquiry operations
   getAllEnquiries(): Promise<Enquiry[]>;
@@ -517,6 +518,80 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bills.id, id))
       .returning();
     return updated;
+  }
+
+  async mergeBills(bookingIds: number[], primaryBookingId: number): Promise<Bill> {
+    // Fetch all bookings
+    const allBookings = await Promise.all(
+      bookingIds.map(id => this.getBooking(id))
+    );
+    
+    // Ensure all bookings exist
+    if (allBookings.some(b => !b)) {
+      throw new Error("One or more bookings not found");
+    }
+
+    const primaryBooking = allBookings.find(b => b?.id === primaryBookingId);
+    if (!primaryBooking) {
+      throw new Error("Primary booking not found");
+    }
+
+    // Calculate total room charges from all bookings
+    let totalRoomCharges = 0;
+    for (const booking of allBookings) {
+      if (booking) {
+        totalRoomCharges += parseFloat(booking.totalAmount || "0");
+      }
+    }
+
+    // Get all orders for these bookings
+    const allOrders = await Promise.all(
+      bookingIds.map(id => this.getOrdersByBooking(id))
+    );
+    const flatOrders = allOrders.flat();
+    
+    // Calculate total food charges
+    const totalFoodCharges = flatOrders.reduce((sum, order) => {
+      return sum + parseFloat(order.totalAmount);
+    }, 0);
+
+    // Get all extra services for these bookings
+    const allServices = await Promise.all(
+      bookingIds.map(id => this.getExtraServicesByBooking(id))
+    );
+    const flatServices = allServices.flat();
+    
+    // Calculate total extra charges
+    const totalExtraCharges = flatServices.reduce((sum, service) => {
+      return sum + parseFloat(service.amount);
+    }, 0);
+
+    // Calculate bill totals
+    const subtotal = totalRoomCharges + totalFoodCharges + totalExtraCharges;
+    const gstRate = 18;
+    const serviceChargeRate = 10;
+    const gstAmount = (subtotal * gstRate) / 100;
+    const serviceChargeAmount = (subtotal * serviceChargeRate) / 100;
+    const totalAmount = subtotal + gstAmount + serviceChargeAmount;
+
+    // Create merged bill
+    const mergedBill = await this.createBill({
+      bookingId: primaryBookingId,
+      guestId: primaryBooking.guestId,
+      roomCharges: totalRoomCharges.toFixed(2),
+      foodCharges: totalFoodCharges.toFixed(2),
+      extraCharges: totalExtraCharges.toFixed(2),
+      subtotal: subtotal.toFixed(2),
+      gstRate: gstRate.toFixed(2),
+      gstAmount: gstAmount.toFixed(2),
+      serviceChargeRate: serviceChargeRate.toFixed(2),
+      serviceChargeAmount: serviceChargeAmount.toFixed(2),
+      totalAmount: totalAmount.toFixed(2),
+      paymentStatus: "unpaid",
+      mergedBookingIds: bookingIds,
+    });
+
+    return mergedBill;
   }
 
   // Enquiry operations

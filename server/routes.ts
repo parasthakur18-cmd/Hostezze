@@ -594,6 +594,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/bills/merge", isAuthenticated, async (req, res) => {
+    try {
+      const schema = z.object({
+        bookingIds: z.array(z.number()).min(2, "At least 2 bookings required"),
+        primaryBookingId: z.number(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Validate that primaryBookingId is in bookingIds
+      if (!data.bookingIds.includes(data.primaryBookingId)) {
+        return res.status(400).json({ message: "Primary booking must be one of the selected bookings" });
+      }
+      
+      const mergedBill = await storage.mergeBills(data.bookingIds, data.primaryBookingId);
+      res.status(201).json(mergedBill);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Enquiries
   app.get("/api/enquiries", isAuthenticated, async (req, res) => {
     try {
