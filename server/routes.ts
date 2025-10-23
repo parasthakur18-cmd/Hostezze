@@ -243,11 +243,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bookings", isAuthenticated, async (req, res) => {
     try {
+      console.log("Booking request body:", JSON.stringify(req.body, null, 2));
       const data = insertBookingSchema.parse(req.body);
       const booking = await storage.createBooking(data);
       res.status(201).json(booking);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
+        console.error("Booking validation errors:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       res.status(500).json({ message: error.message });
