@@ -346,19 +346,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Active bookings MUST come before /api/bookings/:id to avoid route collision
   app.get("/api/bookings/active", isAuthenticated, async (req, res) => {
-    console.log("=== ACTIVE BOOKINGS ENDPOINT CALLED ===");
-    
     try {
-      // Get bookings directly
-      const result = await db.execute(sql`
-        SELECT id, property_id, room_id, guest_id, status, check_in_date, custom_price, advance_amount
-        FROM bookings 
-        WHERE status = 'checked-in' 
-        ORDER BY check_in_date DESC
-      `);
+      // Get all checked-in bookings
+      const allBookings = await storage.getAllBookings();
+      const activeBookings = allBookings.filter(b => b.status === "checked-in");
       
-      console.log("Got result:", result.rows.length, "checked-in bookings");
-      res.json(result.rows);
+      if (activeBookings.length === 0) {
+        return res.json([]);
+      }
+
+      // Get all related data
+      const allGuests = await storage.getAllGuests();
+      const allRooms = await storage.getAllRooms();
+      const allProperties = await storage.getAllProperties();
+      const allOrders = await db.select().from(orders);
+      const allExtras = await db.select().from(extraServices);
+
+      // Build enriched data
+      const enrichedBookings = activeBookings.map(booking => {
+        const guest = allGuests.find(g => g.id === booking.guestId);
+        const room = booking.roomId ? allRooms.find(r => r.id === booking.roomId) : null;
+        const property = room?.propertyId ? allProperties.find(p => p.id === room.propertyId) : null;
+
+        if (!guest || !room) {
+          return null;
+        }
+
+        // Calculate nights stayed
+        const checkInDate = new Date(booking.checkInDate);
+        const now = new Date();
+        const nightsStayed = Math.max(1, Math.ceil((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+        // Calculate charges
+        const customPrice = booking.customPrice ? parseFloat(String(booking.customPrice)) : null;
+        const roomPrice = room.pricePerNight ? parseFloat(String(room.pricePerNight)) : 0;
+        const pricePerNight = customPrice || roomPrice;
+        const roomCharges = pricePerNight * nightsStayed;
+
+        const bookingOrders = allOrders.filter(o => o.bookingId === booking.id);
+        const foodCharges = bookingOrders.reduce((sum, order) => {
+          const amount = order.totalAmount ? parseFloat(String(order.totalAmount)) : 0;
+          return sum + amount;
+        }, 0);
+
+        const bookingExtras = allExtras.filter(e => e.bookingId === booking.id);
+        const extraCharges = bookingExtras.reduce((sum, extra) => {
+          const amount = extra.amount ? parseFloat(String(extra.amount)) : 0;
+          return sum + amount;
+        }, 0);
+
+        const subtotal = roomCharges + foodCharges + extraCharges;
+        const gstAmount = (subtotal * 18) / 100;
+        const serviceChargeAmount = (subtotal * 10) / 100;
+        const totalAmount = subtotal + gstAmount + serviceChargeAmount;
+        const advancePaid = booking.advanceAmount ? parseFloat(String(booking.advanceAmount)) : 0;
+        const balanceAmount = totalAmount - advancePaid;
+
+        return {
+          ...booking,
+          guest,
+          room,
+          property,
+          nightsStayed,
+          orders: bookingOrders,
+          charges: {
+            roomCharges: roomCharges.toFixed(2),
+            foodCharges: foodCharges.toFixed(2),
+            extraCharges: extraCharges.toFixed(2),
+            subtotal: subtotal.toFixed(2),
+            gstAmount: gstAmount.toFixed(2),
+            serviceChargeAmount: serviceChargeAmount.toFixed(2),
+            totalAmount: totalAmount.toFixed(2),
+            advancePaid: advancePaid.toFixed(2),
+            balanceAmount: balanceAmount.toFixed(2),
+          },
+        };
+      }).filter(Boolean);
+
+      res.json(enrichedBookings);
     } catch (error: any) {
       console.error("Active bookings error:", error);
       res.status(500).json({ message: error.message });
