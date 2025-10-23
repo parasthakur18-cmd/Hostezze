@@ -29,6 +29,7 @@ export default function Bookings() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<number | null>(null);
   const [showQuickGuestForm, setShowQuickGuestForm] = useState(false);
+  const [showRoomSelect, setShowRoomSelect] = useState(false);
   const [quickGuestData, setQuickGuestData] = useState({
     fullName: "",
     phone: "",
@@ -114,6 +115,7 @@ export default function Bookings() {
       setIsDialogOpen(false);
       form.reset();
       setShowQuickGuestForm(false);
+      setShowRoomSelect(false);
     },
     onError: (error: Error) => {
       toast({
@@ -210,7 +212,17 @@ export default function Bookings() {
               data-testid="input-search-bookings"
             />
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog 
+            open={isDialogOpen} 
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) {
+                setShowRoomSelect(false);
+                setShowQuickGuestForm(false);
+                form.reset();
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button data-testid="button-add-booking">
                 <Plus className="h-4 w-4 mr-2" />
@@ -332,25 +344,47 @@ export default function Bookings() {
                   name="roomId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Room (Optional - Auto-assign if not selected)</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(value === "auto" ? null : parseInt(value))}
-                        value={field.value ? field.value.toString() : "auto"}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-booking-room">
-                            <SelectValue placeholder="Auto-assign room" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="auto">Auto-assign</SelectItem>
-                          {availableRooms?.map((room) => (
-                            <SelectItem key={room.id} value={room.id.toString()}>
-                              Room {room.roomNumber} - {room.roomType} (₹{room.pricePerNight}/night)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center justify-between">
+                        <FormLabel>Room Assignment</FormLabel>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowRoomSelect(!showRoomSelect);
+                            if (showRoomSelect) {
+                              field.onChange(null);
+                            }
+                          }}
+                          data-testid="button-toggle-room-select"
+                        >
+                          {showRoomSelect ? "Use Auto-assign" : "Select Specific Room"}
+                        </Button>
+                      </div>
+                      
+                      {showRoomSelect ? (
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          value={field.value ? field.value.toString() : undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-booking-room">
+                              <SelectValue placeholder="Select room" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableRooms?.map((room) => (
+                              <SelectItem key={room.id} value={room.id.toString()}>
+                                Room {room.roomNumber} - {room.roomType} (₹{room.pricePerNight}/night)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="p-3 border border-border rounded-lg bg-muted/50 text-sm text-muted-foreground">
+                          Room will be automatically assigned based on availability
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
