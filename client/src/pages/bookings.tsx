@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Calendar, User, Hotel } from "lucide-react";
+import { Plus, Calendar, User, Hotel, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -34,6 +34,9 @@ export default function Bookings() {
     phone: "",
     email: "",
   });
+  const [checkoutBookingId, setCheckoutBookingId] = useState<number | null>(null);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const { toast } = useToast();
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
@@ -496,6 +499,19 @@ export default function Bookings() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {booking.status === "checked-in" && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setCheckoutBookingId(booking.id);
+                            setCheckoutDialogOpen(true);
+                          }}
+                          data-testid={`button-checkout-${booking.id}`}
+                        >
+                          <Receipt className="h-4 w-4 mr-2" />
+                          Checkout
+                        </Button>
+                      )}
                       <Select
                         value={booking.status}
                         onValueChange={(value) => updateStatusMutation.mutate({ id: booking.id, status: value })}
@@ -547,6 +563,244 @@ export default function Bookings() {
           })}
         </div>
       )}
+
+      {/* Checkout Dialog */}
+      <Dialog open={checkoutDialogOpen} onOpenChange={setCheckoutDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Checkout - Bill Summary</DialogTitle>
+          </DialogHeader>
+          {checkoutBookingId && <CheckoutBillSummary 
+            bookingId={checkoutBookingId} 
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            onClose={() => setCheckoutDialogOpen(false)}
+          />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Checkout Bill Summary Component
+function CheckoutBillSummary({ 
+  bookingId, 
+  paymentMethod, 
+  setPaymentMethod,
+  onClose 
+}: { 
+  bookingId: number;
+  paymentMethod: string;
+  setPaymentMethod: (method: string) => void;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+
+  // Fetch booking details
+  const { data: bookings } = useQuery<Booking[]>({
+    queryKey: ["/api/bookings"],
+  });
+
+  const booking = bookings?.find(b => b.id === bookingId);
+
+  // Fetch related data
+  const { data: properties } = useQuery<any[]>({
+    queryKey: ["/api/properties"],
+  });
+
+  const { data: rooms } = useQuery<any[]>({
+    queryKey: ["/api/rooms"],
+  });
+
+  const { data: guests } = useQuery<any[]>({
+    queryKey: ["/api/guests"],
+  });
+
+  const { data: orders } = useQuery<any[]>({
+    queryKey: ["/api/orders"],
+  });
+
+  const { data: extraServices } = useQuery<any[]>({
+    queryKey: ["/api/addons"],
+  });
+
+  const checkoutMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/bookings/checkout", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Checkout completed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process checkout",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (!booking) {
+    return <div className="p-4">Loading booking details...</div>;
+  }
+
+  const property = properties?.find(p => p.id === booking.propertyId);
+  const room = rooms?.find(r => r.id === booking.roomId);
+  const guest = guests?.find(g => g.id === booking.guestId);
+
+  // Filter orders and extras for this booking
+  const bookingOrders = orders?.filter(o => o.bookingId === bookingId) || [];
+  const bookingExtras = extraServices?.filter(e => e.bookingId === bookingId) || [];
+
+  // Calculate charges
+  const checkInDate = new Date(booking.checkInDate);
+  const checkOutDate = new Date(booking.checkOutDate);
+  const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Use customPrice if available, otherwise use room price
+  const pricePerNight = booking.customPrice ? parseFloat(booking.customPrice) : (room ? parseFloat(room.pricePerNight) : 0);
+  const roomCharges = pricePerNight * nights;
+
+  const foodCharges = bookingOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || "0"), 0);
+  const extraCharges = bookingExtras.reduce((sum, extra) => sum + parseFloat(extra.amount || "0"), 0);
+
+  const subtotal = roomCharges + foodCharges + extraCharges;
+  const gstRate = 18;
+  const gstAmount = (subtotal * gstRate) / 100;
+  const serviceChargeRate = 10;
+  const serviceChargeAmount = (subtotal * serviceChargeRate) / 100;
+  const totalAmount = subtotal + gstAmount + serviceChargeAmount;
+
+  const advancePaid = parseFloat(booking.advanceAmount || "0");
+  const balanceAmount = totalAmount - advancePaid;
+
+  const handleCheckout = () => {
+    checkoutMutation.mutate({
+      bookingId,
+      paymentMethod,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Guest and Room Info */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-lg">{guest?.fullName}</h3>
+            <p className="text-sm text-muted-foreground">{property?.name}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-medium">{room ? `Room ${room.roomNumber}` : "Room TBA"}</p>
+            <p className="text-xs text-muted-foreground">{nights} night{nights !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          <span>{format(checkInDate, "PPP")}</span>
+          <span className="mx-2">→</span>
+          <span>{format(checkOutDate, "PPP")}</span>
+        </div>
+      </div>
+
+      {/* Bill Details */}
+      <div className="border rounded-lg p-4 space-y-3">
+        <h4 className="font-semibold mb-3">Bill Details</h4>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Room Charges ({nights} × ₹{pricePerNight.toFixed(2)})</span>
+            <span className="font-mono" data-testid="text-checkout-room-charges">₹{roomCharges.toFixed(2)}</span>
+          </div>
+          
+          {foodCharges > 0 && (
+            <div className="flex justify-between text-sm">
+              <span>Food & Beverage ({bookingOrders.length} order{bookingOrders.length !== 1 ? 's' : ''})</span>
+              <span className="font-mono" data-testid="text-checkout-food-charges">₹{foodCharges.toFixed(2)}</span>
+            </div>
+          )}
+          
+          {extraCharges > 0 && (
+            <div className="flex justify-between text-sm">
+              <span>Extra Services ({bookingExtras.length} service{bookingExtras.length !== 1 ? 's' : ''})</span>
+              <span className="font-mono" data-testid="text-checkout-extra-charges">₹{extraCharges.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="border-t pt-2 mt-2">
+            <div className="flex justify-between text-sm font-medium">
+              <span>Subtotal</span>
+              <span className="font-mono">₹{subtotal.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span>GST ({gstRate}%)</span>
+            <span className="font-mono">₹{gstAmount.toFixed(2)}</span>
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span>Service Charge ({serviceChargeRate}%)</span>
+            <span className="font-mono">₹{serviceChargeAmount.toFixed(2)}</span>
+          </div>
+
+          <div className="border-t pt-2 mt-2">
+            <div className="flex justify-between font-semibold">
+              <span>Total Amount</span>
+              <span className="font-mono text-lg" data-testid="text-checkout-total">₹{totalAmount.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {advancePaid > 0 && (
+            <div className="flex justify-between text-sm text-chart-2">
+              <span>Advance Paid</span>
+              <span className="font-mono" data-testid="text-checkout-advance">-₹{advancePaid.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="border-t pt-2 mt-2">
+            <div className="flex justify-between font-bold text-lg">
+              <span>Balance Due</span>
+              <span className="font-mono text-primary" data-testid="text-checkout-balance">₹{balanceAmount.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Method */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Payment Method</label>
+        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+          <SelectTrigger data-testid="select-checkout-payment-method">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="cash">Cash</SelectItem>
+            <SelectItem value="card">Card</SelectItem>
+            <SelectItem value="upi">UPI</SelectItem>
+            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Actions */}
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} data-testid="button-cancel-checkout">
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleCheckout} 
+          disabled={checkoutMutation.isPending}
+          data-testid="button-confirm-checkout"
+        >
+          {checkoutMutation.isPending ? "Processing..." : `Complete Checkout (₹${balanceAmount.toFixed(2)})`}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }

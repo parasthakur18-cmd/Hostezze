@@ -119,6 +119,7 @@ export interface IStorage {
   getBillByBooking(bookingId: number): Promise<Bill | undefined>;
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: number, bill: Partial<InsertBill>): Promise<Bill>;
+  createOrUpdateBill(bill: InsertBill): Promise<Bill>;
   mergeBills(bookingIds: number[], primaryBookingId: number): Promise<Bill>;
 
   // Enquiry operations
@@ -591,6 +592,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bills.id, id))
       .returning();
     return updated;
+  }
+
+  async createOrUpdateBill(bill: InsertBill): Promise<Bill> {
+    // Check if a bill already exists for this booking
+    const existingBill = await this.getBillByBooking(bill.bookingId);
+    
+    if (existingBill) {
+      // Update existing bill
+      return this.updateBill(existingBill.id, bill);
+    } else {
+      // Create new bill
+      return this.createBill(bill);
+    }
   }
 
   async mergeBills(bookingIds: number[], primaryBookingId: number): Promise<Bill> {

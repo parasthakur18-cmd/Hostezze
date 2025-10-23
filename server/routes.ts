@@ -403,6 +403,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Checkout endpoint
+  app.post("/api/bookings/checkout", isAuthenticated, async (req, res) => {
+    try {
+      const { bookingId, paymentMethod } = req.body;
+      
+      // Validate input
+      if (!bookingId || !paymentMethod) {
+        return res.status(400).json({ message: "Booking ID and payment method are required" });
+      }
+
+      // Fetch booking
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Fetch room to get price
+      const room = booking.roomId ? await storage.getRoom(booking.roomId) : null;
+      
+      // Calculate nights
+      const checkInDate = new Date(booking.checkInDate);
+      const checkOutDate = new Date(booking.checkOutDate);
+      const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Calculate room charges (use customPrice if available, otherwise room price)
+      const pricePerNight = booking.customPrice ? parseFloat(booking.customPrice) : (room ? parseFloat(room.pricePerNight) : 0);
+      const roomCharges = pricePerNight * nights;
+
+      // Fetch and calculate food charges
+      const allOrders = await storage.getAllOrders();
+      const bookingOrders = allOrders.filter(o => o.bookingId === bookingId);
+      const foodCharges = bookingOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || "0"), 0);
+
+      // Fetch and calculate extra service charges
+      const allExtras = await storage.getAllExtraServices();
+      const bookingExtras = allExtras.filter(e => e.bookingId === bookingId);
+      const extraCharges = bookingExtras.reduce((sum, extra) => sum + parseFloat(extra.amount || "0"), 0);
+
+      // Calculate totals
+      const subtotal = roomCharges + foodCharges + extraCharges;
+      const gstRate = 18;
+      const gstAmount = (subtotal * gstRate) / 100;
+      const serviceChargeRate = 10;
+      const serviceChargeAmount = (subtotal * serviceChargeRate) / 100;
+      const totalAmount = subtotal + gstAmount + serviceChargeAmount;
+
+      const advancePaid = parseFloat(booking.advanceAmount || "0");
+      const balanceAmount = totalAmount - advancePaid;
+
+      // Create/Update bill with server-calculated amounts
+      const bill = await storage.createOrUpdateBill({
+        bookingId,
+        guestId: booking.guestId,
+        roomCharges: roomCharges.toFixed(2),
+        foodCharges: foodCharges.toFixed(2),
+        extraCharges: extraCharges.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+        gstRate: gstRate.toString(),
+        gstAmount: gstAmount.toFixed(2),
+        serviceChargeRate: serviceChargeRate.toString(),
+        serviceChargeAmount: serviceChargeAmount.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        advancePaid: advancePaid.toFixed(2),
+        balanceAmount: balanceAmount.toFixed(2),
+        paymentStatus: "paid",
+        paymentMethod,
+      });
+
+      // Only update booking status after successful bill creation
+      await storage.updateBookingStatus(bookingId, "checked-out");
+
+      res.json({ success: true, bill });
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Menu Items
   app.get("/api/menu-items", isAuthenticated, async (req, res) => {
     try {
