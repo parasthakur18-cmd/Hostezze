@@ -50,8 +50,9 @@ export default function Bookings() {
   const form = useForm<InsertBooking>({
     resolver: zodResolver(insertBookingSchema),
     defaultValues: {
-      propertyId: 0,
-      guestId: 0,
+      propertyId: undefined as any,
+      guestId: undefined as any,
+      roomId: null,
       checkInDate: new Date(),
       checkOutDate: new Date(),
       status: "pending",
@@ -137,12 +138,12 @@ export default function Bookings() {
               New Booking
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Booking</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-4">
                 <FormField
                   control={form.control}
                   name="propertyId"
@@ -155,7 +156,7 @@ export default function Bookings() {
                           field.onChange(propId);
                           setSelectedProperty(propId);
                         }}
-                        value={field.value?.toString()}
+                        value={field.value ? field.value.toString() : undefined}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-booking-property">
@@ -182,7 +183,7 @@ export default function Bookings() {
                       <FormLabel>Guest</FormLabel>
                       <Select
                         onValueChange={(value) => field.onChange(parseInt(value))}
-                        value={field.value?.toString()}
+                        value={field.value ? field.value.toString() : undefined}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-booking-guest">
@@ -209,7 +210,7 @@ export default function Bookings() {
                       <FormLabel>Room (Optional - Auto-assign if not selected)</FormLabel>
                       <Select
                         onValueChange={(value) => field.onChange(value === "auto" ? null : parseInt(value))}
-                        value={field.value?.toString() || "auto"}
+                        value={field.value ? field.value.toString() : "auto"}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-booking-room">
@@ -239,8 +240,7 @@ export default function Bookings() {
                         <FormControl>
                           <Input
                             type="datetime-local"
-                            {...field}
-                            value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : ""}
+                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             data-testid="input-booking-checkin"
                           />
@@ -258,8 +258,7 @@ export default function Bookings() {
                         <FormControl>
                           <Input
                             type="datetime-local"
-                            {...field}
-                            value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : ""}
+                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             data-testid="input-booking-checkout"
                           />
@@ -279,7 +278,7 @@ export default function Bookings() {
                         <Input
                           type="number"
                           min="1"
-                          {...field}
+                          value={field.value || 1}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
                           data-testid="input-booking-guests"
                         />
@@ -297,8 +296,8 @@ export default function Bookings() {
                       <FormControl>
                         <Textarea
                           placeholder="Any special requirements..."
-                          {...field}
                           value={field.value || ""}
+                          onChange={field.onChange}
                           data-testid="input-booking-requests"
                         />
                       </FormControl>
