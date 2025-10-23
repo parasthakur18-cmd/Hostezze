@@ -352,11 +352,33 @@ export const insertLeasePaymentSchema = createInsertSchema(leasePayments).omit({
 export type InsertLeasePayment = z.infer<typeof insertLeasePaymentSchema>;
 export type LeasePayment = typeof leasePayments.$inferSelect;
 
+// Expense Categories table
+export const expenseCategories = pgTable("expense_categories", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  keywords: text("keywords").array(), // Keywords for auto-categorization
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertExpenseCategorySchema = createInsertSchema(expenseCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExpenseCategory = z.infer<typeof insertExpenseCategorySchema>;
+export type ExpenseCategory = typeof expenseCategories.$inferSelect;
+
 // Property Expenses table
 export const propertyExpenses = pgTable("property_expenses", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   propertyId: integer("property_id").notNull().references(() => properties.id, { onDelete: 'cascade' }),
-  category: varchar("category", { length: 50 }).notNull(),
+  categoryId: integer("category_id").references(() => expenseCategories.id),
+  category: varchar("category", { length: 50 }), // Legacy field, kept for backward compatibility
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   expenseDate: timestamp("expense_date").notNull(),
   description: text("description"),
@@ -380,6 +402,37 @@ export const insertPropertyExpenseSchema = createInsertSchema(propertyExpenses).
 export type InsertPropertyExpense = z.infer<typeof insertPropertyExpenseSchema>;
 export type PropertyExpense = typeof propertyExpenses.$inferSelect;
 
+// Bank Transactions table (for imported transactions from bank statements)
+export const bankTransactions = pgTable("bank_transactions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  propertyId: integer("property_id").notNull().references(() => properties.id, { onDelete: 'cascade' }),
+  uploadId: varchar("upload_id", { length: 100 }).notNull(), // Groups transactions from same upload
+  transactionDate: timestamp("transaction_date").notNull(),
+  description: text("description").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  transactionType: varchar("transaction_type", { length: 20 }).notNull(), // 'debit' or 'credit'
+  suggestedCategoryId: integer("suggested_category_id").references(() => expenseCategories.id),
+  assignedCategoryId: integer("assigned_category_id").references(() => expenseCategories.id),
+  isImported: boolean("is_imported").notNull().default(false), // True if converted to expense
+  importedExpenseId: integer("imported_expense_id").references(() => propertyExpenses.id),
+  matchConfidence: varchar("match_confidence", { length: 20 }), // 'high', 'medium', 'low', 'none'
+  rawData: text("raw_data"), // Original transaction text
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBankTransactionSchema = createInsertSchema(bankTransactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  transactionDate: z.coerce.date(),
+});
+
+export type InsertBankTransaction = z.infer<typeof insertBankTransactionSchema>;
+export type BankTransaction = typeof bankTransactions.$inferSelect;
+
 // Relations
 export const propertiesRelations = relations(properties, ({ many }) => ({
   rooms: many(rooms),
@@ -389,6 +442,8 @@ export const propertiesRelations = relations(properties, ({ many }) => ({
   enquiries: many(enquiries),
   leases: many(propertyLeases),
   expenses: many(propertyExpenses),
+  expenseCategories: many(expenseCategories),
+  bankTransactions: many(bankTransactions),
 }));
 
 export const propertyLeasesRelations = relations(propertyLeases, ({ one, many }) => ({
@@ -406,10 +461,41 @@ export const leasePaymentsRelations = relations(leasePayments, ({ one }) => ({
   }),
 }));
 
+export const expenseCategoriesRelations = relations(expenseCategories, ({ one, many }) => ({
+  property: one(properties, {
+    fields: [expenseCategories.propertyId],
+    references: [properties.id],
+  }),
+  expenses: many(propertyExpenses),
+}));
+
 export const propertyExpensesRelations = relations(propertyExpenses, ({ one }) => ({
   property: one(properties, {
     fields: [propertyExpenses.propertyId],
     references: [properties.id],
+  }),
+  category: one(expenseCategories, {
+    fields: [propertyExpenses.categoryId],
+    references: [expenseCategories.id],
+  }),
+}));
+
+export const bankTransactionsRelations = relations(bankTransactions, ({ one }) => ({
+  property: one(properties, {
+    fields: [bankTransactions.propertyId],
+    references: [properties.id],
+  }),
+  suggestedCategory: one(expenseCategories, {
+    fields: [bankTransactions.suggestedCategoryId],
+    references: [expenseCategories.id],
+  }),
+  assignedCategory: one(expenseCategories, {
+    fields: [bankTransactions.assignedCategoryId],
+    references: [expenseCategories.id],
+  }),
+  importedExpense: one(propertyExpenses, {
+    fields: [bankTransactions.importedExpenseId],
+    references: [propertyExpenses.id],
   }),
 }));
 
