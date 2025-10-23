@@ -16,6 +16,7 @@ import {
   insertExpenseCategorySchema,
   insertBankTransactionSchema,
   orders,
+  extraServices,
 } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
@@ -409,35 +410,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Active bookings with running totals
   app.get("/api/bookings/active", isAuthenticated, async (req, res) => {
     try {
-      console.log(">>> Fetching active bookings...");
+      console.log("=== Active Bookings API Called ===");
       
       // Get all checked-in bookings
-      console.log(">>> Fetching all bookings...");
       const allBookings = await storage.getAllBookings();
-      console.log(`>>> Total bookings: ${allBookings.length}`);
       const activeBookings = allBookings.filter(b => b.status === "checked-in");
-      console.log(`>>> Active (checked-in) bookings: ${activeBookings.length}`);
+      console.log(`Found ${activeBookings.length} checked-in bookings`);
+
+      // If no active bookings, return empty array
+      if (activeBookings.length === 0) {
+        return res.json([]);
+      }
 
       // Get all necessary data
-      console.log(">>> Fetching all guests...");
       const allGuests = await storage.getAllGuests();
-      console.log(`>>> Guests fetched: ${allGuests.length}`);
-      
-      console.log(">>> Fetching all rooms...");
       const allRooms = await storage.getAllRooms();
-      console.log(`>>> Rooms fetched: ${allRooms.length}`);
-      
-      console.log(">>> Fetching all properties...");
       const allProperties = await storage.getAllProperties();
-      console.log(`>>> Properties fetched: ${allProperties.length}`);
       
-      console.log(">>> Fetching all orders...");
-      const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
-      console.log(`>>> Orders fetched: ${allOrders.length}`);
+      // Get orders and extras with proper error handling
+      let allOrders: any[] = [];
+      let allExtras: any[] = [];
       
-      console.log(">>> Fetching all extra services...");
-      const allExtras = await storage.getAllExtraServices();
-      console.log(`>>> Extra services fetched: ${allExtras.length}`);
+      try {
+        allOrders = await db.select().from(orders);
+        console.log(`Fetched ${allOrders.length} orders`);
+      } catch (err: any) {
+        console.error("Error fetching orders:", err.message);
+        allOrders = [];
+      }
+      
+      try {
+        allExtras = await db.select().from(extraServices);
+        console.log(`Fetched ${allExtras.length} extra services`);
+      } catch (err: any) {
+        console.error("Error fetching extras:", err.message);
+        allExtras = [];
+      }
 
       // Build enriched active booking data
       const enrichedBookings = activeBookings.filter(booking => {
