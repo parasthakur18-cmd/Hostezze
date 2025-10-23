@@ -12,6 +12,8 @@ import {
   propertyLeases,
   leasePayments,
   propertyExpenses,
+  expenseCategories,
+  bankTransactions,
   type User,
   type UpsertUser,
   type Property,
@@ -38,6 +40,10 @@ import {
   type InsertLeasePayment,
   type PropertyExpense,
   type InsertPropertyExpense,
+  type ExpenseCategory,
+  type InsertExpenseCategory,
+  type BankTransaction,
+  type InsertBankTransaction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, lt, gt, sql } from "drizzle-orm";
@@ -144,6 +150,23 @@ export interface IStorage {
   createExpense(expense: InsertPropertyExpense): Promise<PropertyExpense>;
   updateExpense(id: number, expense: Partial<InsertPropertyExpense>): Promise<PropertyExpense>;
   deleteExpense(id: number): Promise<void>;
+
+  // Expense Category operations
+  getAllExpenseCategories(): Promise<ExpenseCategory[]>;
+  getExpenseCategoriesByProperty(propertyId: number | null): Promise<ExpenseCategory[]>;
+  getExpenseCategory(id: number): Promise<ExpenseCategory | undefined>;
+  createExpenseCategory(category: InsertExpenseCategory): Promise<ExpenseCategory>;
+  updateExpenseCategory(id: number, category: Partial<InsertExpenseCategory>): Promise<ExpenseCategory>;
+  deleteExpenseCategory(id: number): Promise<void>;
+  seedDefaultCategories(): Promise<void>;
+
+  // Bank Transaction operations
+  getBankTransactionsByUpload(uploadId: string): Promise<BankTransaction[]>;
+  getBankTransactionsByProperty(propertyId: number): Promise<BankTransaction[]>;
+  createBankTransactions(transactions: InsertBankTransaction[]): Promise<BankTransaction[]>;
+  updateBankTransaction(id: number, transaction: Partial<InsertBankTransaction>): Promise<BankTransaction>;
+  deleteBankTransaction(id: number): Promise<void>;
+  importTransactionsToExpenses(transactionIds: number[]): Promise<PropertyExpense[]>;
 
   // Financial Reports
   getPropertyFinancials(propertyId: number, startDate?: Date, endDate?: Date): Promise<any>;
@@ -833,6 +856,199 @@ export class DatabaseStorage implements IStorage {
 
   async deleteExpense(id: number): Promise<void> {
     await db.delete(propertyExpenses).where(eq(propertyExpenses.id, id));
+  }
+
+  // Expense Category operations
+  async getAllExpenseCategories(): Promise<ExpenseCategory[]> {
+    return await db.select().from(expenseCategories).orderBy(expenseCategories.name);
+  }
+
+  async getExpenseCategoriesByProperty(propertyId: number | null): Promise<ExpenseCategory[]> {
+    if (propertyId === null) {
+      // Get default categories
+      return await db.select().from(expenseCategories)
+        .where(eq(expenseCategories.isDefault, true))
+        .orderBy(expenseCategories.name);
+    }
+    
+    // Get both default categories and property-specific categories
+    return await db.select().from(expenseCategories)
+      .where(
+        sql`${expenseCategories.propertyId} IS NULL OR ${expenseCategories.propertyId} = ${propertyId}`
+      )
+      .orderBy(expenseCategories.name);
+  }
+
+  async getExpenseCategory(id: number): Promise<ExpenseCategory | undefined> {
+    const [category] = await db.select().from(expenseCategories).where(eq(expenseCategories.id, id));
+    return category;
+  }
+
+  async createExpenseCategory(categoryData: InsertExpenseCategory): Promise<ExpenseCategory> {
+    const [category] = await db.insert(expenseCategories).values(categoryData).returning();
+    return category;
+  }
+
+  async updateExpenseCategory(id: number, categoryData: Partial<InsertExpenseCategory>): Promise<ExpenseCategory> {
+    const [category] = await db
+      .update(expenseCategories)
+      .set({ ...categoryData, updatedAt: new Date() })
+      .where(eq(expenseCategories.id, id))
+      .returning();
+    return category;
+  }
+
+  async deleteExpenseCategory(id: number): Promise<void> {
+    await db.delete(expenseCategories).where(eq(expenseCategories.id, id));
+  }
+
+  async seedDefaultCategories(): Promise<void> {
+    const defaultCategories = [
+      {
+        name: "Rent",
+        description: "Property lease and rent payments",
+        keywords: ["rent", "lease", "landlord", "property payment"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Electricity",
+        description: "Electricity and power bills",
+        keywords: ["electricity", "power", "electric", "energy", "utility"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Groceries",
+        description: "Food and grocery purchases",
+        keywords: ["grocery", "food", "vegetables", "fruits", "market", "supplies"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Salaries",
+        description: "Staff salaries and wages",
+        keywords: ["salary", "wages", "payroll", "staff payment", "employee"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Maintenance",
+        description: "Property maintenance and repairs",
+        keywords: ["maintenance", "repair", "fix", "plumbing", "painting", "cleaning"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Water",
+        description: "Water and sewage bills",
+        keywords: ["water", "sewage", "drainage"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Internet & Phone",
+        description: "Internet and telephone bills",
+        keywords: ["internet", "wifi", "broadband", "phone", "telephone", "mobile"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Marketing",
+        description: "Advertising and marketing expenses",
+        keywords: ["marketing", "advertising", "promotion", "social media"],
+        isDefault: true,
+        propertyId: null,
+      },
+      {
+        name: "Supplies",
+        description: "General supplies and consumables",
+        keywords: ["supplies", "consumables", "toiletries", "amenities"],
+        isDefault: true,
+        propertyId: null,
+      },
+    ];
+
+    // Check if default categories already exist
+    const existing = await db.select().from(expenseCategories)
+      .where(eq(expenseCategories.isDefault, true));
+
+    if (existing.length === 0) {
+      await db.insert(expenseCategories).values(defaultCategories);
+    }
+  }
+
+  // Bank Transaction operations
+  async getBankTransactionsByUpload(uploadId: string): Promise<BankTransaction[]> {
+    return await db.select().from(bankTransactions)
+      .where(eq(bankTransactions.uploadId, uploadId))
+      .orderBy(desc(bankTransactions.transactionDate));
+  }
+
+  async getBankTransactionsByProperty(propertyId: number): Promise<BankTransaction[]> {
+    return await db.select().from(bankTransactions)
+      .where(eq(bankTransactions.propertyId, propertyId))
+      .orderBy(desc(bankTransactions.transactionDate));
+  }
+
+  async createBankTransactions(transactionsData: InsertBankTransaction[]): Promise<BankTransaction[]> {
+    const transactions = await db.insert(bankTransactions).values(transactionsData).returning();
+    return transactions;
+  }
+
+  async updateBankTransaction(id: number, transactionData: Partial<InsertBankTransaction>): Promise<BankTransaction> {
+    const [transaction] = await db
+      .update(bankTransactions)
+      .set({ ...transactionData, updatedAt: new Date() })
+      .where(eq(bankTransactions.id, id))
+      .returning();
+    return transaction;
+  }
+
+  async deleteBankTransaction(id: number): Promise<void> {
+    await db.delete(bankTransactions).where(eq(bankTransactions.id, id));
+  }
+
+  async importTransactionsToExpenses(transactionIds: number[]): Promise<PropertyExpense[]> {
+    // Get the transactions
+    const transactions = await db.select().from(bankTransactions)
+      .where(sql`${bankTransactions.id} = ANY(${transactionIds})`);
+
+    const expenses: PropertyExpense[] = [];
+
+    for (const transaction of transactions) {
+      // Skip if already imported
+      if (transaction.isImported) continue;
+
+      // Create expense from transaction
+      const categoryId = transaction.assignedCategoryId || transaction.suggestedCategoryId;
+      
+      const [expense] = await db.insert(propertyExpenses).values({
+        propertyId: transaction.propertyId,
+        categoryId: categoryId || null,
+        amount: transaction.amount,
+        expenseDate: transaction.transactionDate,
+        description: transaction.description,
+        vendorName: null,
+        paymentMethod: "Bank Transfer",
+        receiptNumber: null,
+        isRecurring: false,
+        createdBy: transaction.createdBy,
+      }).returning();
+
+      // Mark transaction as imported
+      await db.update(bankTransactions)
+        .set({ 
+          isImported: true, 
+          importedExpenseId: expense.id,
+          updatedAt: new Date() 
+        })
+        .where(eq(bankTransactions.id, transaction.id));
+
+      expenses.push(expense);
+    }
+
+    return expenses;
   }
 
   // Financial Reports
