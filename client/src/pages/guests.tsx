@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, UserPlus, Phone, Mail, MapPin } from "lucide-react";
+import { Plus, UserPlus, Phone, Mail, MapPin, Camera, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -18,6 +18,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Guests() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [idProofPreview, setIdProofPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const { data: guests, isLoading } = useQuery<Guest[]>({
@@ -28,14 +31,35 @@ export default function Guests() {
     resolver: zodResolver(insertGuestSchema),
     defaultValues: {
       fullName: "",
-      email: "",
+      email: undefined,
       phone: "",
-      idProofType: "",
-      idProofNumber: "",
-      address: "",
-      preferences: "",
+      idProofType: undefined,
+      idProofNumber: undefined,
+      idProofImage: undefined,
+      address: undefined,
+      preferences: undefined,
     },
   });
+
+  const handleFileCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setIdProofPreview(base64String);
+        form.setValue("idProofImage", base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearIdProof = () => {
+    setIdProofPreview(null);
+    form.setValue("idProofImage", "");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertGuest) => {
@@ -49,6 +73,7 @@ export default function Guests() {
       });
       setIsDialogOpen(false);
       form.reset();
+      clearIdProof();
     },
     onError: (error: Error) => {
       toast({
@@ -90,12 +115,12 @@ export default function Guests() {
               Add Guest
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Guest</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-4">
                 <FormField
                   control={form.control}
                   name="fullName"
@@ -165,6 +190,81 @@ export default function Guests() {
                     )}
                   />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="idProofImage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ID Proof Image (Optional)</FormLabel>
+                      <FormControl>
+                        <div className="space-y-3">
+                          <div className="flex gap-2 flex-wrap">
+                            <input
+                              ref={cameraInputRef}
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={handleFileCapture}
+                              className="hidden"
+                              data-testid="input-guest-id-camera"
+                            />
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={handleFileCapture}
+                              className="hidden"
+                              data-testid="input-guest-id-upload"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => cameraInputRef.current?.click()}
+                              data-testid="button-capture-id"
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Capture ID
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRef.current?.click()}
+                              data-testid="button-upload-id"
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload ID
+                            </Button>
+                            {idProofPreview && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={clearIdProof}
+                                data-testid="button-clear-id"
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                          {idProofPreview && (
+                            <div className="relative rounded-lg overflow-hidden border border-border">
+                              <img
+                                src={idProofPreview}
+                                alt="ID Proof Preview"
+                                className="w-full h-auto max-h-48 object-contain bg-muted"
+                                data-testid="image-id-preview"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="address"

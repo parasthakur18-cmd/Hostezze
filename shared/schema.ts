@@ -96,6 +96,7 @@ export const guests = pgTable("guests", {
   phone: varchar("phone", { length: 50 }).notNull(),
   idProofType: varchar("id_proof_type", { length: 50 }),
   idProofNumber: varchar("id_proof_number", { length: 100 }),
+  idProofImage: text("id_proof_image"),
   address: text("address"),
   preferences: text("preferences"),
   totalStays: integer("total_stays").notNull().default(0),
