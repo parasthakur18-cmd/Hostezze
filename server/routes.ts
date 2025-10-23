@@ -11,6 +11,7 @@ import {
   insertOrderSchema,
   insertExtraServiceSchema,
   insertBillSchema,
+  insertEnquirySchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -554,6 +555,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bill = await storage.updateBill(parseInt(req.params.id), req.body);
       res.json(bill);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Enquiries
+  app.get("/api/enquiries", isAuthenticated, async (req, res) => {
+    try {
+      const enquiries = await storage.getAllEnquiries();
+      res.json(enquiries);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/enquiries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const enquiry = await storage.getEnquiry(parseInt(req.params.id));
+      if (!enquiry) {
+        return res.status(404).json({ message: "Enquiry not found" });
+      }
+      res.json(enquiry);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/enquiries", isAuthenticated, async (req, res) => {
+    try {
+      const data = insertEnquirySchema.parse(req.body);
+      const enquiry = await storage.createEnquiry(data);
+      res.status(201).json(enquiry);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/enquiries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const updateSchema = insertEnquirySchema.omit({ status: true }).partial();
+      const data = updateSchema.parse(req.body);
+      const enquiry = await storage.updateEnquiry(parseInt(req.params.id), data);
+      if (!enquiry) {
+        return res.status(404).json({ message: "Enquiry not found" });
+      }
+      res.json(enquiry);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/enquiries/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const statusSchema = z.object({
+        status: z.enum(["new", "messaged", "payment_pending", "paid", "confirmed", "cancelled"]),
+      });
+      const { status } = statusSchema.parse(req.body);
+      const enquiry = await storage.updateEnquiryStatus(parseInt(req.params.id), status);
+      if (!enquiry) {
+        return res.status(404).json({ message: "Enquiry not found" });
+      }
+      res.json(enquiry);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid status", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/enquiries/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteEnquiry(parseInt(req.params.id));
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Room availability checking
+  app.get("/api/rooms/availability", isAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, checkIn, checkOut } = req.query;
+      
+      if (!propertyId || !checkIn || !checkOut) {
+        return res.status(400).json({ message: "propertyId, checkIn, and checkOut are required" });
+      }
+
+      const availableRooms = await storage.getAvailableRoomsForDates(
+        parseInt(propertyId as string),
+        new Date(checkIn as string),
+        new Date(checkOut as string)
+      );
+      
+      res.json(availableRooms);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

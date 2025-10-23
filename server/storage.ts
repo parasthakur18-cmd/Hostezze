@@ -8,6 +8,7 @@ import {
   orders,
   extraServices,
   bills,
+  enquiries,
   type User,
   type UpsertUser,
   type Property,
@@ -26,6 +27,8 @@ import {
   type InsertExtraService,
   type Bill,
   type InsertBill,
+  type Enquiry,
+  type InsertEnquiry,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
@@ -95,6 +98,15 @@ export interface IStorage {
   getBillByBooking(bookingId: number): Promise<Bill | undefined>;
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: number, bill: Partial<InsertBill>): Promise<Bill>;
+
+  // Enquiry operations
+  getAllEnquiries(): Promise<Enquiry[]>;
+  getEnquiry(id: number): Promise<Enquiry | undefined>;
+  createEnquiry(enquiry: InsertEnquiry): Promise<Enquiry>;
+  updateEnquiry(id: number, enquiry: Partial<InsertEnquiry>): Promise<Enquiry>;
+  updateEnquiryStatus(id: number, status: string): Promise<Enquiry>;
+  deleteEnquiry(id: number): Promise<void>;
+  getAvailableRoomsForDates(propertyId: number, checkIn: Date, checkOut: Date): Promise<Room[]>;
 
   // Dashboard stats
   getDashboardStats(): Promise<any>;
@@ -450,6 +462,65 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bills.id, id))
       .returning();
     return updated;
+  }
+
+  // Enquiry operations
+  async getAllEnquiries(): Promise<Enquiry[]> {
+    return await db.select().from(enquiries).orderBy(desc(enquiries.createdAt));
+  }
+
+  async getEnquiry(id: number): Promise<Enquiry | undefined> {
+    const [enquiry] = await db.select().from(enquiries).where(eq(enquiries.id, id));
+    return enquiry;
+  }
+
+  async createEnquiry(enquiryData: InsertEnquiry): Promise<Enquiry> {
+    const [enquiry] = await db.insert(enquiries).values(enquiryData).returning();
+    return enquiry;
+  }
+
+  async updateEnquiry(id: number, enquiryData: Partial<InsertEnquiry>): Promise<Enquiry> {
+    const [enquiry] = await db
+      .update(enquiries)
+      .set({ ...enquiryData, updatedAt: new Date() })
+      .where(eq(enquiries.id, id))
+      .returning();
+    return enquiry;
+  }
+
+  async updateEnquiryStatus(id: number, status: string): Promise<Enquiry> {
+    const [enquiry] = await db
+      .update(enquiries)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(enquiries.id, id))
+      .returning();
+    return enquiry;
+  }
+
+  async deleteEnquiry(id: number): Promise<void> {
+    await db.delete(enquiries).where(eq(enquiries.id, id));
+  }
+
+  async getAvailableRoomsForDates(propertyId: number, checkIn: Date, checkOut: Date): Promise<Room[]> {
+    const allRooms = await db
+      .select()
+      .from(rooms)
+      .where(eq(rooms.propertyId, propertyId));
+
+    const overlappingBookings = await db
+      .select({ roomId: bookings.roomId })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          sql`${bookings.status} IN ('confirmed', 'checked-in')`,
+          sql`${bookings.checkInDate} < ${checkOut}`,
+          sql`${bookings.checkOutDate} > ${checkIn}`
+        )
+      );
+
+    const bookedRoomIds = new Set(overlappingBookings.map(b => b.roomId).filter(id => id !== null));
+    return allRooms.filter(room => !bookedRoomIds.has(room.id));
   }
 
   // Dashboard stats

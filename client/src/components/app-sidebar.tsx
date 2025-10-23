@@ -10,6 +10,8 @@ import {
   Settings,
   ChefHat,
   Phone,
+  MessageSquarePlus,
+  MessageSquare,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -33,6 +35,7 @@ const adminMenuItems = [
   { title: "Rooms", url: "/rooms", icon: Hotel },
   { title: "Bookings", url: "/bookings", icon: Calendar },
   { title: "Guests", url: "/guests", icon: Users },
+  { title: "Enquiries", url: "/enquiries", icon: MessageSquare },
   { title: "Restaurant", url: "/restaurant", icon: UtensilsCrossed },
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },
@@ -46,6 +49,7 @@ const managerMenuItems = [
   { title: "Rooms", url: "/rooms", icon: Hotel },
   { title: "Bookings", url: "/bookings", icon: Calendar },
   { title: "Guests", url: "/guests", icon: Users },
+  { title: "Enquiries", url: "/enquiries", icon: MessageSquare },
   { title: "Restaurant", url: "/restaurant", icon: UtensilsCrossed },
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },

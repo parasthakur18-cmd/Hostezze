@@ -21,6 +21,8 @@ import Analytics from "@/pages/analytics";
 import Settings from "@/pages/settings";
 import Menu from "@/pages/menu";
 import QuickOrder from "@/pages/quick-order";
+import NewEnquiry from "@/pages/new-enquiry";
+import Enquiries from "@/pages/enquiries";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -53,6 +55,8 @@ function Router() {
           <Route path="/restaurant" component={Kitchen} />
           <Route path="/kitchen" component={Kitchen} />
           <Route path="/quick-order" component={QuickOrder} />
+          <Route path="/enquiries" component={Enquiries} />
+          <Route path="/new-enquiry" component={NewEnquiry} />
           <Route path="/billing" component={Billing} />
           <Route path="/analytics" component={Analytics} />
           <Route path="/settings" component={Settings} />

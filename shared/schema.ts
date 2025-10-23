@@ -248,12 +248,50 @@ export const insertBillSchema = createInsertSchema(bills).omit({
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type Bill = typeof bills.$inferSelect;
 
+// Enquiries table
+export const enquiries = pgTable("enquiries", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  propertyId: integer("property_id").notNull().references(() => properties.id),
+  guestName: varchar("guest_name", { length: 255 }).notNull(),
+  guestPhone: varchar("guest_phone", { length: 50 }).notNull(),
+  guestEmail: varchar("guest_email", { length: 255 }),
+  checkInDate: timestamp("check_in_date").notNull(),
+  checkOutDate: timestamp("check_out_date").notNull(),
+  roomId: integer("room_id").references(() => rooms.id),
+  numberOfGuests: integer("number_of_guests").notNull().default(1),
+  priceQuoted: decimal("price_quoted", { precision: 10, scale: 2 }),
+  advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }),
+  status: varchar("status", { length: 20 }).notNull().default("new"),
+  stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
+  stripePaymentLinkUrl: text("stripe_payment_link_url"),
+  twilioMessageSid: varchar("twilio_message_sid", { length: 100 }),
+  specialRequests: text("special_requests"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertEnquirySchema = createInsertSchema(enquiries).omit({
+  id: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  checkInDate: z.coerce.date(),
+  checkOutDate: z.coerce.date(),
+  status: z.enum(["new", "messaged", "payment_pending", "paid", "confirmed", "cancelled"]).default("new"),
+});
+
+export type InsertEnquiry = z.infer<typeof insertEnquirySchema>;
+export type Enquiry = typeof enquiries.$inferSelect;
+
 // Relations
 export const propertiesRelations = relations(properties, ({ many }) => ({
   rooms: many(rooms),
   bookings: many(bookings),
   menuItems: many(menuItems),
   orders: many(orders),
+  enquiries: many(enquiries),
 }));
 
 export const roomsRelations = relations(rooms, ({ one, many }) => ({
@@ -263,6 +301,7 @@ export const roomsRelations = relations(rooms, ({ one, many }) => ({
   }),
   bookings: many(bookings),
   orders: many(orders),
+  enquiries: many(enquiries),
 }));
 
 export const guestsRelations = relations(guests, ({ many }) => ({
@@ -330,5 +369,16 @@ export const billsRelations = relations(bills, ({ one }) => ({
   guest: one(guests, {
     fields: [bills.guestId],
     references: [guests.id],
+  }),
+}));
+
+export const enquiriesRelations = relations(enquiries, ({ one }) => ({
+  property: one(properties, {
+    fields: [enquiries.propertyId],
+    references: [properties.id],
+  }),
+  room: one(rooms, {
+    fields: [enquiries.roomId],
+    references: [rooms.id],
   }),
 }));
