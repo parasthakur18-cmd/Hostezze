@@ -91,6 +91,7 @@ export interface IStorage {
   // Order operations
   getAllOrders(): Promise<Order[]>;
   getOrder(id: number): Promise<Order | undefined>;
+  getOrdersByBooking(bookingId: number): Promise<Order[]>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order>;
   updateOrderStatus(id: number, status: string): Promise<Order>;
@@ -158,6 +159,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // Try to find existing user by email first
+    if (userData.email) {
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, userData.email));
+      
+      if (existingUser) {
+        // Update existing user
+        const [updated] = await db
+          .update(users)
+          .set({
+            ...userData,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingUser.id))
+          .returning();
+        return updated;
+      }
+    }
+
+    // Insert new user if no conflict
     const [user] = await db
       .insert(users)
       .values(userData)
@@ -426,6 +449,14 @@ export class DatabaseStorage implements IStorage {
   async getOrder(id: number): Promise<Order | undefined> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
     return order;
+  }
+
+  async getOrdersByBooking(bookingId: number): Promise<Order[]> {
+    return await db
+      .select()
+      .from(orders)
+      .where(eq(orders.bookingId, bookingId))
+      .orderBy(desc(orders.createdAt));
   }
 
   async createOrder(order: InsertOrder): Promise<Order> {
