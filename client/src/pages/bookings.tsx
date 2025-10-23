@@ -55,7 +55,7 @@ export default function Bookings() {
   });
 
   const form = useForm<InsertBooking>({
-    resolver: zodResolver(insertBookingSchema),
+    // Don't use zodResolver because we create the guest first
     defaultValues: {
       propertyId: undefined as any,
       guestId: undefined as any,
