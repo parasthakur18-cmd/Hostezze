@@ -204,15 +204,22 @@ export type Order = typeof orders.$inferSelect;
 export const extraServices = pgTable("extra_services", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   bookingId: integer("booking_id").notNull().references(() => bookings.id, { onDelete: 'cascade' }),
+  serviceType: varchar("service_type", { length: 50 }).notNull(), // taxi, guide, adventure, partner_commission
   serviceName: varchar("service_name", { length: 255 }).notNull(),
   description: text("description"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  vendorName: varchar("vendor_name", { length: 255 }),
+  vendorContact: varchar("vendor_contact", { length: 100 }),
+  commission: decimal("commission", { precision: 10, scale: 2 }),
+  serviceDate: timestamp("service_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertExtraServiceSchema = createInsertSchema(extraServices).omit({
   id: true,
   createdAt: true,
+}).extend({
+  serviceDate: z.coerce.date(),
 });
 
 export type InsertExtraService = z.infer<typeof insertExtraServiceSchema>;
