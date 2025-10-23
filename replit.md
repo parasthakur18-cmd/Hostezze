@@ -2,7 +2,7 @@
 
 ## Overview
 
-A comprehensive property management system designed for mountain resort properties. The platform enables multi-property management, booking coordination with custom pricing and advance payments, guest tracking, restaurant operations, complete checkout functionality with bill generation, and complete financial tracking from a unified interface. The financial module tracks property lease agreements with automatic balance calculation, records lease payments, manages property expenses with customizable categories and keyword-based auto-categorization, and generates detailed P&L reports showing income, expenses, and profit/loss per property. Built with a modern SaaS architecture, it features a mountain resort-inspired design system with mobile-first responsiveness.
+A comprehensive property management system designed for mountain resort properties. The platform enables multi-property management, booking coordination with custom pricing and advance payments, guest tracking, restaurant operations, complete checkout functionality with bill generation, search and filtering capabilities, and complete financial tracking from a unified interface. The financial module tracks property lease agreements with automatic balance calculation, records lease payments, manages property expenses with customizable categories and keyword-based auto-categorization, and generates detailed P&L reports showing income, expenses, and profit/loss per property. Built with a modern SaaS architecture, it features a mountain resort-inspired design system with mobile-first responsiveness.
 
 ## User Preferences
 
