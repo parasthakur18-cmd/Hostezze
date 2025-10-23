@@ -15,8 +15,11 @@ import {
   updateUserRoleSchema,
   insertExpenseCategorySchema,
   insertBankTransactionSchema,
+  orders,
 } from "@shared/schema";
 import { z } from "zod";
+import { db } from "./db";
+import { desc } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -406,46 +409,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Active bookings with running totals
   app.get("/api/bookings/active", isAuthenticated, async (req, res) => {
     try {
+      console.log(">>> Fetching active bookings...");
+      
       // Get all checked-in bookings
+      console.log(">>> Fetching all bookings...");
       const allBookings = await storage.getAllBookings();
+      console.log(`>>> Total bookings: ${allBookings.length}`);
       const activeBookings = allBookings.filter(b => b.status === "checked-in");
+      console.log(`>>> Active (checked-in) bookings: ${activeBookings.length}`);
 
       // Get all necessary data
+      console.log(">>> Fetching all guests...");
       const allGuests = await storage.getAllGuests();
+      console.log(`>>> Guests fetched: ${allGuests.length}`);
+      
+      console.log(">>> Fetching all rooms...");
       const allRooms = await storage.getAllRooms();
+      console.log(`>>> Rooms fetched: ${allRooms.length}`);
+      
+      console.log(">>> Fetching all properties...");
       const allProperties = await storage.getAllProperties();
-      const allOrders = await storage.getAllOrders();
+      console.log(`>>> Properties fetched: ${allProperties.length}`);
+      
+      console.log(">>> Fetching all orders...");
+      const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+      console.log(`>>> Orders fetched: ${allOrders.length}`);
+      
+      console.log(">>> Fetching all extra services...");
       const allExtras = await storage.getAllExtraServices();
+      console.log(`>>> Extra services fetched: ${allExtras.length}`);
 
       // Build enriched active booking data
-      const enrichedBookings = activeBookings.map(booking => {
+      const enrichedBookings = activeBookings.filter(booking => {
+        // Only include bookings with valid guest and room
+        return booking.guestId && booking.roomId;
+      }).map(booking => {
         const guest = allGuests.find(g => g.id === booking.guestId);
-        const room = allRooms.find(r => r.id === booking.roomId);
-        const property = room ? allProperties.find(p => p.id === room.propertyId) : null;
+        const room = booking.roomId ? allRooms.find(r => r.id === booking.roomId) : null;
+        const property = room?.propertyId ? allProperties.find(p => p.id === room.propertyId) : null;
+
+        // Skip if no guest or room found
+        if (!guest || !room) {
+          console.warn(`Skipping booking ${booking.id}: missing guest or room`);
+          return null;
+        }
 
         // Calculate nights stayed (from check-in to now)
         const checkInDate = new Date(booking.checkInDate);
         const now = new Date();
-        const nightsStayed = Math.ceil((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+        const nightsStayed = Math.max(1, Math.ceil((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
 
-        // Calculate room charges
-        const pricePerNight = booking.customPrice ? parseFloat(booking.customPrice) : (room ? parseFloat(room.pricePerNight) : 0);
+        // Calculate room charges safely
+        const customPrice = booking.customPrice ? parseFloat(String(booking.customPrice)) : null;
+        const roomPrice = room.pricePerNight ? parseFloat(String(room.pricePerNight)) : 0;
+        const pricePerNight = customPrice || roomPrice;
         const roomCharges = pricePerNight * nightsStayed;
 
         // Calculate food charges
         const bookingOrders = allOrders.filter(o => o.bookingId === booking.id);
-        const foodCharges = bookingOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || "0"), 0);
+        const foodCharges = bookingOrders.reduce((sum, order) => {
+          const amount = order.totalAmount ? parseFloat(String(order.totalAmount)) : 0;
+          return sum + amount;
+        }, 0);
 
         // Calculate extra charges
         const bookingExtras = allExtras.filter(e => e.bookingId === booking.id);
-        const extraCharges = bookingExtras.reduce((sum, extra) => sum + parseFloat(extra.amount || "0"), 0);
+        const extraCharges = bookingExtras.reduce((sum, extra) => {
+          const amount = extra.amount ? parseFloat(String(extra.amount)) : 0;
+          return sum + amount;
+        }, 0);
 
         // Calculate totals
         const subtotal = roomCharges + foodCharges + extraCharges;
         const gstAmount = (subtotal * 18) / 100;
         const serviceChargeAmount = (subtotal * 10) / 100;
         const totalAmount = subtotal + gstAmount + serviceChargeAmount;
-        const advancePaid = parseFloat(booking.advanceAmount || "0");
+        const advancePaid = booking.advanceAmount ? parseFloat(String(booking.advanceAmount)) : 0;
         const balanceAmount = totalAmount - advancePaid;
 
         return {
@@ -467,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             balanceAmount: balanceAmount.toFixed(2),
           },
         };
-      });
+      }).filter(Boolean);
 
       res.json(enrichedBookings);
     } catch (error: any) {

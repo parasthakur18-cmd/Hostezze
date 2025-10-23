@@ -220,7 +220,7 @@ export default function ActiveBookings() {
                     <div className="space-y-2 max-h-32 overflow-auto">
                       {booking.orders.slice(0, 3).map((order) => (
                         <div
-                          key={order.id}
+                          key={`booking-${booking.id}-order-${order.id}`}
                           className="text-xs bg-muted/50 rounded p-2"
                           data-testid={`order-${order.id}`}
                         >
