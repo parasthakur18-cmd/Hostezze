@@ -2,7 +2,7 @@
 
 ## Overview
 
-A comprehensive property management system designed for mountain resort properties. The platform enables multi-property management, booking coordination, guest tracking, restaurant operations, and complete financial tracking from a unified interface. The financial module tracks property lease agreements with automatic balance calculation, records lease payments, manages property expenses across multiple categories (electricity, grocery, salaries, maintenance), and generates detailed P&L reports showing income, expenses, and profit/loss per property. Built with a modern SaaS architecture, it features a mountain resort-inspired design system with mobile-first responsiveness.
+A comprehensive property management system designed for mountain resort properties. The platform enables multi-property management, booking coordination, guest tracking, restaurant operations, and complete financial tracking from a unified interface. The financial module tracks property lease agreements with automatic balance calculation, records lease payments, manages property expenses with customizable categories and keyword-based auto-categorization, and generates detailed P&L reports showing income, expenses, and profit/loss per property. Built with a modern SaaS architecture, it features a mountain resort-inspired design system with mobile-first responsiveness.
 
 ## User Preferences
 
@@ -50,6 +50,7 @@ Preferred communication style: Simple, everyday language.
 - Authentication routes: `/api/auth/*` (login, user profile)
 - User management routes: `/api/users` (GET all users, PATCH role updates) - admin only
 - Resource CRUD routes: `/api/{properties|rooms|bookings|guests|orders|bills|leases|expenses}`
+- Expense category routes: `/api/expense-categories` (GET all, POST create, PATCH update, DELETE) with default category seeding on startup
 - Financial routes: `/api/leases/:id/payments`, `/api/financials/:propertyId`
 - Aggregated data routes: `/api/dashboard/stats`, `/api/analytics`
 - Status update routes: `/api/orders/:id/status` for workflow management
@@ -84,12 +85,16 @@ Preferred communication style: Simple, everyday language.
 - **Extra Services**: Additional billable services beyond room and food
 - **Property Leases**: Lease agreements with landlord details, total amount, start/end dates, payment frequency
 - **Lease Payments**: Individual lease payment records with amount, date, and method
-- **Property Expenses**: Operating expense tracking with category, amount, date, and property association
+- **Property Expenses**: Operating expense tracking with categoryId reference, amount, date, and property association
+- **Expense Categories**: Customizable expense categories with keyword arrays for auto-categorization, property-specific or default categories
+- **Bank Transactions**: Scaffolded for future bank statement import (uploadId, rawDescription, auto-categorization support)
 
 **Data Relationships**
 - Properties → Rooms (one-to-many)
 - Properties → Leases (one-to-many)
 - Properties → Expenses (one-to-many)
+- Properties → Expense Categories (one-to-many, optional property-specific categories)
+- Expense Categories → Expenses (one-to-many)
 - Leases → Payments (one-to-many)
 - Guests → Bookings (one-to-many)
 - Rooms → Bookings (one-to-many)
