@@ -637,6 +637,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { bookingId, paymentMethod, discountType, discountValue, includeGst = true, includeServiceCharge = true } = req.body;
       
+      console.log("Checkout request body:", JSON.stringify(req.body, null, 2));
+      console.log("includeGst value:", includeGst, "type:", typeof includeGst);
+      console.log("includeServiceCharge value:", includeServiceCharge, "type:", typeof includeServiceCharge);
+      
       // Validate input
       if (!bookingId || !paymentMethod) {
         return res.status(400).json({ message: "Booking ID and payment method are required" });
@@ -695,6 +699,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create/Update bill with server-calculated amounts
       console.log(`Creating bill for booking ${bookingId} with discount: ${discountType} - ${discountValue}`);
+      console.log(`includeGst: ${includeGst}, includeServiceCharge: ${includeServiceCharge}`);
+      console.log(`gstAmount calculated: ${gstAmount.toFixed(2)}, serviceChargeAmount calculated: ${serviceChargeAmount.toFixed(2)}`);
       const billData = {
         bookingId,
         guestId: booking.guestId,
@@ -722,6 +728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const bill = await storage.createOrUpdateBill(billData);
       console.log("Bill created successfully:", bill.id, "for booking:", bill.bookingId);
+      console.log("Bill includeGst:", bill.includeGst, "includeServiceCharge:", bill.includeServiceCharge);
 
       // Only update booking status after successful bill creation
       await storage.updateBookingStatus(bookingId, "checked-out");
