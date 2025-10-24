@@ -129,14 +129,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: `Room ${roomNumber} not found. Please check your room number.` });
       }
 
+      // Find the checked-in booking for this room to link the order
+      const bookings = await storage.getAllBookings();
+      const activeBooking = bookings.find(b => b.roomId === room.id && b.status === "checked-in");
+
       const orderData = {
-        propertyId: 1, // Default property - you can make this dynamic
-        roomId: room.id, // Use the actual room ID from the database
+        propertyId: room.propertyId,
+        roomId: room.id,
+        bookingId: activeBooking?.id || null, // Link to booking if guest is checked in
+        guestId: activeBooking?.guestId || null, // Also include guest ID for tracking
         items,
         totalAmount,
         specialInstructions: specialInstructions || null,
         status: "pending",
-        orderSource: "guest", // Track that this order came from guest self-service
+        orderSource: "guest",
       };
 
       const order = await storage.createOrder(orderData);
