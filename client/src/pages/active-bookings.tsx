@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 
 interface ActiveBooking {
@@ -69,23 +70,29 @@ export default function ActiveBookings() {
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [discountType, setDiscountType] = useState<string>("none");
   const [discountValue, setDiscountValue] = useState<string>("");
+  const [includeGst, setIncludeGst] = useState<boolean>(true);
+  const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(true);
 
   const { data: activeBookings, isLoading } = useQuery<ActiveBooking[]>({
     queryKey: ["/api/bookings/active"],
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue }: { 
+    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, includeGst, includeServiceCharge }: { 
       bookingId: number; 
       paymentMethod: string;
       discountType?: string;
       discountValue?: number;
+      includeGst: boolean;
+      includeServiceCharge: boolean;
     }) => {
       return await apiRequest("POST", "/api/bookings/checkout", { 
         bookingId, 
         paymentMethod,
         discountType: discountType === "none" ? null : discountType,
         discountValue: discountType === "none" ? null : discountValue,
+        includeGst,
+        includeServiceCharge,
       });
     },
     onSuccess: () => {
@@ -99,6 +106,8 @@ export default function ActiveBookings() {
       setPaymentMethod("cash");
       setDiscountType("none");
       setDiscountValue("");
+      setIncludeGst(true);
+      setIncludeServiceCharge(true);
     },
     onError: (error: any) => {
       toast({
@@ -116,6 +125,8 @@ export default function ActiveBookings() {
       paymentMethod,
       discountType: discountType === "none" ? undefined : discountType,
       discountValue: discountType === "none" || !discountValue ? undefined : parseFloat(discountValue),
+      includeGst,
+      includeServiceCharge,
     });
   };
 
@@ -393,6 +404,31 @@ export default function ActiveBookings() {
                   />
                 </div>
               )}
+
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="include-gst" 
+                    checked={includeGst}
+                    onCheckedChange={(checked) => setIncludeGst(checked as boolean)}
+                    data-testid="checkbox-include-gst"
+                  />
+                  <Label htmlFor="include-gst" className="cursor-pointer font-normal">
+                    Include GST (18%)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="include-service-charge" 
+                    checked={includeServiceCharge}
+                    onCheckedChange={(checked) => setIncludeServiceCharge(checked as boolean)}
+                    data-testid="checkbox-include-service-charge"
+                  />
+                  <Label htmlFor="include-service-charge" className="cursor-pointer font-normal">
+                    Include Service Charge (10%)
+                  </Label>
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="payment-method">Payment Method</Label>
