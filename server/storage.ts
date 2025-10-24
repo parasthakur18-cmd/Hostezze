@@ -46,7 +46,7 @@ import {
   type InsertBankTransaction,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, lt, gt, sql, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, gt, sql, or, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -732,10 +732,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(bookings.propertyId, propertyId),
-          or(
-            eq(bookings.status, 'confirmed'),
-            eq(bookings.status, 'checked-in')
-          )
+          inArray(bookings.status, ['confirmed', 'checked-in'])
         )
       );
 

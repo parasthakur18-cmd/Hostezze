@@ -1173,16 +1173,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('Room availability request:', { propertyId, checkIn, checkOut });
+      console.log('Creating Date objects...');
+      const checkInDate = new Date(checkIn as string);
+      const checkOutDate = new Date(checkOut as string);
+      console.log('Dates created:', { checkInDate, checkOutDate });
 
       const availableRooms = await storage.getAvailableRoomsForDates(
         parseInt(propertyId as string),
-        new Date(checkIn as string),
-        new Date(checkOut as string)
+        checkInDate,
+        checkOutDate
       );
       
+      console.log(`Found ${availableRooms.length} available rooms`);
       res.json(availableRooms);
     } catch (error: any) {
-      console.error('Room availability error:', error);
+      console.error('Room availability error FULL:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({ message: error.message });
     }
   });
