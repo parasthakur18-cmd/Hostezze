@@ -67,9 +67,24 @@ Authentication is handled by **Replit Auth** with OpenID Connect (OIDC) via Pass
 - **Message Templates**: Created 6 default message templates for common scenarios (payment reminders, booking confirmations, check-in details, payment confirmations, check-out reminders, welcome messages). Templates support variable substitution like {guestName}, {advanceAmount}, etc.
 - **Communication Logging**: All messages are logged in `communications` table with recipient details, message content, delivery status, and timestamps.
 - **Enquiries Page Enhancements**:
-  - Added "Mark as Received" button for enquiries with pending payments
+  - Added "Confirm Enquiry" button for enquiries with pending payments (renamed from "Mark as Received")
+  - Button now automatically converts enquiry to booking via POST /api/enquiries/:id/confirm endpoint
   - Added "Send Message" button that opens dialog with template selection or custom message capability
   - Payment status badges displayed next to price information
   - Real-time message preview with variable substitution
-- **API Enhancements**: New endpoints for payment status updates (`PATCH /api/enquiries/:id/payment-status`), message templates (`GET /api/message-templates`), sending messages (`POST /api/communications`), and viewing communication history (`GET /api/enquiries/:id/communications`, `GET /api/bookings/:id/communications`).
+- **API Enhancements**: New endpoints for enquiry confirmation (`POST /api/enquiries/:id/confirm`), payment status updates (`PATCH /api/enquiries/:id/payment-status`), message templates (`GET /api/message-templates`), sending messages (`POST /api/communications`), and viewing communication history (`GET /api/enquiries/:id/communications`, `GET /api/bookings/:id/communications`).
 - **WhatsApp/SMS Ready**: Backend infrastructure prepared for Twilio integration. Messages are currently logged; actual sending requires Twilio setup.
+
+### Guest ID Proof Upload & Enquiry Conversion (October 2024)
+- **Mandatory ID Upload**: All new bookings now require guest ID proof upload using Replit Object Storage
+  - ObjectUploader component integrated with Uppy v3 for file uploads
+  - Presigned URL upload flow with private ACL policies for secure document storage
+  - Upload endpoints: POST /api/objects/upload, PUT /api/guest-id-proofs, GET /objects/:objectPath
+  - Form validation prevents booking creation without ID proof
+  - Upload button shows "Upload Guest ID" (changes to "ID Uploaded ✓" when complete)
+- **Automated Enquiry-to-Booking Conversion**: "Confirm Enquiry" button now creates bookings automatically
+  - POST /api/enquiries/:id/confirm endpoint handles the conversion
+  - Finds or creates guest from enquiry data
+  - Creates booking with "confirmed" status
+  - Updates enquiry status to "confirmed" and payment status to "received"
+  - Invalidates both enquiries and bookings cache for real-time UI updates
