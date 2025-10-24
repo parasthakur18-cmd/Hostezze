@@ -12,18 +12,16 @@ export default function RoomCalendar() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number>();
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  const { data: properties } = useQuery<Property[]>({
+  const { data: properties, isLoading: isLoadingProperties } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });
 
   const { data: rooms = [] } = useQuery<Room[]>({
     queryKey: ["/api/rooms"],
-    enabled: !!selectedPropertyId,
   });
 
   const { data: bookings = [] } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
-    enabled: !!selectedPropertyId,
   });
 
   // Filter rooms for selected property
@@ -85,21 +83,35 @@ export default function RoomCalendar() {
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Select Property</label>
-              <Select
-                value={selectedPropertyId?.toString()}
-                onValueChange={(value) => setSelectedPropertyId(parseInt(value))}
-              >
-                <SelectTrigger data-testid="select-property-calendar">
-                  <SelectValue placeholder="Choose a property to view calendar" />
-                </SelectTrigger>
-                <SelectContent>
-                  {properties?.map((property) => (
-                    <SelectItem key={property.id} value={property.id.toString()}>
-                      {property.name} - {property.location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isLoadingProperties ? (
+                <div className="h-10 bg-muted animate-pulse rounded-md" />
+              ) : (
+                <Select
+                  value={selectedPropertyId?.toString() || ""}
+                  onValueChange={(value) => {
+                    if (value) {
+                      setSelectedPropertyId(parseInt(value));
+                    }
+                  }}
+                >
+                  <SelectTrigger data-testid="select-property-calendar">
+                    <SelectValue placeholder="Choose a property to view calendar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {properties && properties.length > 0 ? (
+                      properties.map((property) => (
+                        <SelectItem key={property.id} value={property.id.toString()}>
+                          {property.name} - {property.location}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-sm text-muted-foreground">
+                        No properties available
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         </CardContent>
