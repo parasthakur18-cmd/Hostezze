@@ -17,10 +17,11 @@ import {
   insertBankTransactionSchema,
   orders,
   extraServices,
+  enquiries,
 } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
-import { desc, sql } from "drizzle-orm";
+import { desc, sql, eq } from "drizzle-orm";
 import { format } from "date-fns";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
