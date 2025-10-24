@@ -1163,6 +1163,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update enquiry payment status
+  app.patch("/api/enquiries/:id/payment-status", isAuthenticated, async (req, res) => {
+    try {
+      const paymentStatusSchema = z.object({
+        paymentStatus: z.enum(["pending", "received", "refunded"]),
+      });
+      const { paymentStatus } = paymentStatusSchema.parse(req.body);
+      const enquiry = await storage.updateEnquiryPaymentStatus(parseInt(req.params.id), paymentStatus);
+      if (!enquiry) {
+        return res.status(404).json({ message: "Enquiry not found" });
+      }
+      res.json(enquiry);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payment status", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Message Templates endpoints
+  app.get("/api/message-templates", isAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getAllMessageTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Communications endpoints
+  app.post("/api/communications", isAuthenticated, async (req: any, res) => {
+    try {
+      const { insertCommunicationSchema } = await import("@shared/schema");
+      const data = insertCommunicationSchema.parse(req.body);
+      
+      // Add user who sent the message
+      const userId = req.user?.claims?.sub;
+      const communicationData = {
+        ...data,
+        sentBy: userId,
+      };
+
+      const communication = await storage.sendMessage(communicationData);
+      res.status(201).json(communication);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/enquiries/:id/communications", isAuthenticated, async (req, res) => {
+    try {
+      const communications = await storage.getCommunicationsByEnquiry(parseInt(req.params.id));
+      res.json(communications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/bookings/:id/communications", isAuthenticated, async (req, res) => {
+    try {
+      const communications = await storage.getCommunicationsByBooking(parseInt(req.params.id));
+      res.json(communications);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Room availability checking
   app.get("/api/rooms/availability", isAuthenticated, async (req, res) => {
     try {

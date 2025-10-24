@@ -9,6 +9,8 @@ import {
   extraServices,
   bills,
   enquiries,
+  messageTemplates,
+  communications,
   propertyLeases,
   leasePayments,
   propertyExpenses,
@@ -34,6 +36,10 @@ import {
   type InsertBill,
   type Enquiry,
   type InsertEnquiry,
+  type MessageTemplate,
+  type InsertMessageTemplate,
+  type Communication,
+  type InsertCommunication,
   type PropertyLease,
   type InsertPropertyLease,
   type LeasePayment,
@@ -128,8 +134,18 @@ export interface IStorage {
   createEnquiry(enquiry: InsertEnquiry): Promise<Enquiry>;
   updateEnquiry(id: number, enquiry: Partial<InsertEnquiry>): Promise<Enquiry>;
   updateEnquiryStatus(id: number, status: string): Promise<Enquiry>;
+  updateEnquiryPaymentStatus(id: number, paymentStatus: string): Promise<Enquiry>;
   deleteEnquiry(id: number): Promise<void>;
   getAvailableRoomsForDates(propertyId: number, checkIn: Date, checkOut: Date): Promise<Room[]>;
+
+  // Message Template operations
+  getAllMessageTemplates(): Promise<MessageTemplate[]>;
+  getMessageTemplate(id: number): Promise<MessageTemplate | undefined>;
+
+  // Communication operations
+  sendMessage(communication: InsertCommunication): Promise<Communication>;
+  getCommunicationsByEnquiry(enquiryId: number): Promise<Communication[]>;
+  getCommunicationsByBooking(bookingId: number): Promise<Communication[]>;
 
   // Property Lease operations
   getAllLeases(): Promise<PropertyLease[]>;
@@ -714,8 +730,51 @@ export class DatabaseStorage implements IStorage {
     return enquiry;
   }
 
+  async updateEnquiryPaymentStatus(id: number, paymentStatus: string): Promise<Enquiry> {
+    const [enquiry] = await db
+      .update(enquiries)
+      .set({ paymentStatus, updatedAt: new Date() })
+      .where(eq(enquiries.id, id))
+      .returning();
+    return enquiry;
+  }
+
   async deleteEnquiry(id: number): Promise<void> {
     await db.delete(enquiries).where(eq(enquiries.id, id));
+  }
+
+  // Message Template operations
+  async getAllMessageTemplates(): Promise<MessageTemplate[]> {
+    return await db.select().from(messageTemplates).where(eq(messageTemplates.isActive, true));
+  }
+
+  async getMessageTemplate(id: number): Promise<MessageTemplate | undefined> {
+    const [template] = await db.select().from(messageTemplates).where(eq(messageTemplates.id, id));
+    return template;
+  }
+
+  // Communication operations
+  async sendMessage(communication: InsertCommunication): Promise<Communication> {
+    // Note: Actual SMS/WhatsApp sending via Twilio would happen here if credentials are configured
+    // For now, we just log the message to the database
+    const [sent] = await db.insert(communications).values(communication).returning();
+    return sent;
+  }
+
+  async getCommunicationsByEnquiry(enquiryId: number): Promise<Communication[]> {
+    return await db
+      .select()
+      .from(communications)
+      .where(eq(communications.enquiryId, enquiryId))
+      .orderBy(desc(communications.createdAt));
+  }
+
+  async getCommunicationsByBooking(bookingId: number): Promise<Communication[]> {
+    return await db
+      .select()
+      .from(communications)
+      .where(eq(communications.bookingId, bookingId))
+      .orderBy(desc(communications.createdAt));
   }
 
   async getAvailableRoomsForDates(propertyId: number, checkIn: Date, checkOut: Date): Promise<Room[]> {
