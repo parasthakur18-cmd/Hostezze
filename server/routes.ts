@@ -1252,7 +1252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/enquiries/:id/confirm", isAuthenticated, async (req, res) => {
     try {
       const enquiryId = parseInt(req.params.id);
-      const enquiry = await storage.getEnquiryById(enquiryId);
+      const [enquiry] = await db.select().from(enquiries).where(eq(enquiries.id, enquiryId));
       
       if (!enquiry) {
         return res.status(404).json({ message: "Enquiry not found" });
