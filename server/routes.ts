@@ -113,7 +113,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public Order - for guests to place orders
   app.post("/api/public/orders", async (req, res) => {
     try {
-      console.log("Public order request:", JSON.stringify(req.body, null, 2));
       
       const { roomId, items, totalAmount, specialInstructions } = req.body;
       
@@ -511,7 +510,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bookings", isAuthenticated, async (req, res) => {
     try {
-      console.log("Booking request body:", JSON.stringify(req.body, null, 2));
       
       // Convert date strings to Date objects
       const bodyWithDates = {
@@ -585,153 +583,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Checkout endpoint (keep this in bookings section)
-  app.post("/api/bookings/checkout", isAuthenticated, async (req, res) => {
-    console.log("=== HANDLER STARTED ===");
-    
-    try {
-      console.log("Inside try block");
-      
-      // Step 1: Get bookings
-      console.log("STEP 1: Fetching bookings...");
-      const allBookings = await storage.getAllBookings();
-      console.log(`Got ${allBookings.length} total bookings`);
-      
-      const activeBookings = allBookings.filter(b => b.status === "checked-in");
-      console.log(`Filtered to ${activeBookings.length} checked-in bookings`);
-
-      // If no active bookings, return empty array
-      if (activeBookings.length === 0) {
-        console.log("Returning empty array");
-        return res.json([]);
-      }
-
-      // Step 2: Get related data
-      console.log("STEP 2: Fetching related data...");
-      const allGuests = await storage.getAllGuests();
-      console.log(`Got ${allGuests.length} guests`);
-      
-      const allRooms = await storage.getAllRooms();
-      console.log(`Got ${allRooms.length} rooms`);
-      
-      const allProperties = await storage.getAllProperties();
-      console.log(`Got ${allProperties.length} properties`);
-      
-      // Step 3: Get orders - this might be where the error is
-      console.log("STEP 3: About to fetch orders...");
-      let allOrders: any[] = [];
-      try {
-        console.log("Calling db.select().from(orders)...");
-        allOrders = await db.select().from(orders);
-        console.log(`SUCCESS: Got ${allOrders.length} orders`);
-      } catch (ordersErr: any) {
-        console.error("ORDERS ERROR:", ordersErr.message);
-        console.error("ORDERS ERROR STACK:", ordersErr.stack);
-        allOrders = [];
-      }
-      
-      // Step 4: Get extras
-      console.log("STEP 4: About to fetch extras...");
-      let allExtras: any[] = [];
-      try {
-        console.log("Calling db.select().from(extraServices)...");
-        allExtras = await db.select().from(extraServices);
-        console.log(`SUCCESS: Got ${allExtras.length} extras`);
-      } catch (extrasErr: any) {
-        console.error("EXTRAS ERROR:", extrasErr.message);
-        console.error("EXTRAS ERROR STACK:", extrasErr.stack);
-        allExtras = [];
-      }
-      
-      console.log("STEP 5: Building enriched data...");
-
-      // Build enriched active booking data
-      const enrichedBookings = activeBookings.filter(booking => {
-        // Only include bookings with valid guest and room
-        return booking.guestId && booking.roomId;
-      }).map(booking => {
-        const guest = allGuests.find(g => g.id === booking.guestId);
-        const room = booking.roomId ? allRooms.find(r => r.id === booking.roomId) : null;
-        const property = room?.propertyId ? allProperties.find(p => p.id === room.propertyId) : null;
-
-        // Skip if no guest or room found
-        if (!guest || !room) {
-          console.warn(`Skipping booking ${booking.id}: missing guest or room`);
-          return null;
-        }
-
-        // Calculate nights stayed (from check-in to now)
-        const checkInDate = new Date(booking.checkInDate);
-        const now = new Date();
-        const nightsStayed = Math.max(1, Math.ceil((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
-
-        // Calculate room charges safely
-        const customPrice = booking.customPrice ? parseFloat(String(booking.customPrice)) : null;
-        const roomPrice = room.pricePerNight ? parseFloat(String(room.pricePerNight)) : 0;
-        const pricePerNight = customPrice || roomPrice;
-        const roomCharges = pricePerNight * nightsStayed;
-
-        // Calculate food charges
-        const bookingOrders = allOrders.filter(o => o.bookingId === booking.id);
-        const foodCharges = bookingOrders.reduce((sum, order) => {
-          const amount = order.totalAmount ? parseFloat(String(order.totalAmount)) : 0;
-          return sum + amount;
-        }, 0);
-
-        // Calculate extra charges
-        const bookingExtras = allExtras.filter(e => e.bookingId === booking.id);
-        const extraCharges = bookingExtras.reduce((sum, extra) => {
-          const amount = extra.amount ? parseFloat(String(extra.amount)) : 0;
-          return sum + amount;
-        }, 0);
-
-        // Calculate totals
-        const subtotal = roomCharges + foodCharges + extraCharges;
-        const gstAmount = (subtotal * 18) / 100;
-        const serviceChargeAmount = (subtotal * 10) / 100;
-        const totalAmount = subtotal + gstAmount + serviceChargeAmount;
-        const advancePaid = booking.advanceAmount ? parseFloat(String(booking.advanceAmount)) : 0;
-        const balanceAmount = totalAmount - advancePaid;
-
-        return {
-          ...booking,
-          guest,
-          room,
-          property,
-          nightsStayed,
-          orders: bookingOrders,
-          charges: {
-            roomCharges: roomCharges.toFixed(2),
-            foodCharges: foodCharges.toFixed(2),
-            extraCharges: extraCharges.toFixed(2),
-            subtotal: subtotal.toFixed(2),
-            gstAmount: gstAmount.toFixed(2),
-            serviceChargeAmount: serviceChargeAmount.toFixed(2),
-            totalAmount: totalAmount.toFixed(2),
-            advancePaid: advancePaid.toFixed(2),
-            balanceAmount: balanceAmount.toFixed(2),
-          },
-        };
-      }).filter(Boolean);
-
-      res.json(enrichedBookings);
-    } catch (error: any) {
-      console.error("=== ACTIVE BOOKINGS ERROR ===");
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-      console.error("Full error:", JSON.stringify(error, null, 2));
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Checkout endpoint
   app.post("/api/bookings/checkout", isAuthenticated, async (req, res) => {
     try {
       const { bookingId, paymentMethod, discountType, discountValue, includeGst = true, includeServiceCharge = true } = req.body;
-      
-      console.log("Checkout request body:", JSON.stringify(req.body, null, 2));
-      console.log("includeGst value:", includeGst, "type:", typeof includeGst);
-      console.log("includeServiceCharge value:", includeServiceCharge, "type:", typeof includeServiceCharge);
       
       // Validate input
       if (!bookingId || !paymentMethod) {
@@ -790,9 +645,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const balanceAmount = totalAmount - advancePaid;
 
       // Create/Update bill with server-calculated amounts
-      console.log(`Creating bill for booking ${bookingId} with discount: ${discountType} - ${discountValue}`);
-      console.log(`includeGst: ${includeGst}, includeServiceCharge: ${includeServiceCharge}`);
-      console.log(`gstAmount calculated: ${gstAmount.toFixed(2)}, serviceChargeAmount calculated: ${serviceChargeAmount.toFixed(2)}`);
       const billData = {
         bookingId,
         guestId: booking.guestId,
@@ -816,15 +668,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethod,
         paidAt: new Date(),
       };
-      console.log("Bill data:", JSON.stringify(billData, null, 2));
       
       const bill = await storage.createOrUpdateBill(billData);
-      console.log("Bill created successfully:", bill.id, "for booking:", bill.bookingId);
-      console.log("Bill includeGst:", bill.includeGst, "includeServiceCharge:", bill.includeServiceCharge);
 
       // Only update booking status after successful bill creation
       await storage.updateBookingStatus(bookingId, "checked-out");
-      console.log("Booking status updated to checked-out for booking:", bookingId);
 
       res.json({ success: true, bill });
     } catch (error: any) {

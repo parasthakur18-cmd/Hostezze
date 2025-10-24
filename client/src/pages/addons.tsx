@@ -11,7 +11,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertExtraServiceSchema, type ExtraService, type Booking, type Guest, type Room } from "@shared/schema";
+import { insertExtraServiceSchema, type ExtraService, type Booking } from "@shared/schema";
+
+interface ActiveBookingWithDetails extends Booking {
+  guest: {
+    id: number;
+    fullName: string;
+    email: string | null;
+    phone: string;
+  };
+  room: {
+    id: number;
+    roomNumber: string;
+    type: string;
+    pricePerNight: string;
+  };
+  property?: {
+    id: number;
+    name: string;
+    location: string;
+  };
+}
 import { z } from "zod";
 import { format } from "date-fns";
 import { Plus, Car, MapPin, Mountain, Percent, Trash2 } from "lucide-react";
@@ -46,17 +66,8 @@ export default function AddOnServices() {
     queryKey: ["/api/extra-services"],
   });
 
-  const { data: activeBookings = [] } = useQuery<Booking[]>({
-    queryKey: ["/api/bookings"],
-    select: (bookings) => bookings.filter(b => b.status === "checked-in"),
-  });
-
-  const { data: guests = [] } = useQuery<Guest[]>({
-    queryKey: ["/api/guests"],
-  });
-
-  const { data: rooms = [] } = useQuery<Room[]>({
-    queryKey: ["/api/rooms"],
+  const { data: activeBookings = [] } = useQuery<ActiveBookingWithDetails[]>({
+    queryKey: ["/api/bookings/active"],
   });
 
   const form = useForm({
@@ -128,10 +139,8 @@ export default function AddOnServices() {
     const booking = activeBookings.find(b => b.id === bookingId);
     if (!booking) return `Booking #${bookingId}`;
     
-    const guest = guests.find(g => g.id === booking.guestId);
-    const room = rooms.find(r => r.id === booking.roomId);
-    const roomNumber = room?.roomNumber || booking.roomId;
-    const guestName = guest?.fullName || "Guest";
+    const roomNumber = booking.room?.roomNumber || booking.roomId;
+    const guestName = booking.guest?.fullName || "Guest";
     
     return `Room ${roomNumber} - ${guestName}`;
   };
@@ -186,10 +195,8 @@ export default function AddOnServices() {
                           </FormControl>
                           <SelectContent>
                             {activeBookings.map((booking) => {
-                              const guest = guests.find(g => g.id === booking.guestId);
-                              const room = rooms.find(r => r.id === booking.roomId);
-                              const roomNumber = room?.roomNumber || booking.roomId;
-                              const guestName = guest?.fullName || "Guest";
+                              const roomNumber = booking.room?.roomNumber || booking.roomId;
+                              const guestName = booking.guest?.fullName || "Guest";
                               
                               return (
                                 <SelectItem key={booking.id} value={booking.id.toString()}>
