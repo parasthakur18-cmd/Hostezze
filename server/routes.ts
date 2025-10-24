@@ -468,9 +468,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }, 0);
 
         const subtotal = roomCharges + foodCharges + extraCharges;
-        const gstAmount = (subtotal * 18) / 100;
-        const serviceChargeAmount = (subtotal * 10) / 100;
-        const totalAmount = subtotal + gstAmount + serviceChargeAmount;
+        // Don't automatically apply GST/Service charges in the card display
+        // They are optional and applied only at checkout based on user selection
+        const totalAmount = subtotal;
         const advancePaid = booking.advanceAmount ? parseFloat(String(booking.advanceAmount)) : 0;
         const balanceAmount = totalAmount - advancePaid;
 
@@ -486,8 +486,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             foodCharges: foodCharges.toFixed(2),
             extraCharges: extraCharges.toFixed(2),
             subtotal: subtotal.toFixed(2),
-            gstAmount: gstAmount.toFixed(2),
-            serviceChargeAmount: serviceChargeAmount.toFixed(2),
+            gstAmount: "0.00",
+            serviceChargeAmount: "0.00",
             totalAmount: totalAmount.toFixed(2),
             advancePaid: advancePaid.toFixed(2),
             balanceAmount: balanceAmount.toFixed(2),
