@@ -29,6 +29,7 @@ import Financials from "@/pages/financials";
 import AddOnServices from "@/pages/addons";
 import UsersManagement from "@/pages/users";
 import ActiveBookings from "@/pages/active-bookings";
+import RoomCalendar from "@/pages/room-calendar";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,6 +59,7 @@ function Router() {
           <Route path="/rooms" component={Rooms} />
           <Route path="/bookings" component={Bookings} />
           <Route path="/active-bookings" component={ActiveBookings} />
+          <Route path="/room-calendar" component={RoomCalendar} />
           <Route path="/guests" component={Guests} />
           <Route path="/restaurant" component={Kitchen} />
           <Route path="/kitchen" component={Kitchen} />

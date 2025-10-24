@@ -2,7 +2,7 @@
 
 ## Overview
 
-A comprehensive property management system designed for mountain resort properties. The platform enables multi-property management, booking coordination with custom pricing and advance payments, guest tracking, restaurant operations, complete checkout functionality with bill generation, search and filtering capabilities, and complete financial tracking from a unified interface. The financial module tracks property lease agreements with automatic balance calculation, records lease payments, manages property expenses with customizable categories and keyword-based auto-categorization, and generates detailed P&L reports showing income, expenses, and profit/loss per property. Built with a modern SaaS architecture, it features a mountain resort-inspired design system with mobile-first responsiveness.
+Hostezee is a comprehensive, multi-property management system designed for mountain resort properties. It offers capabilities for booking coordination with custom pricing, advance payments, guest tracking, restaurant operations, and complete checkout with bill generation. The system integrates a robust financial module for tracking property lease agreements, lease payments, and expenses with auto-categorization. It generates detailed P&L reports per property, providing a unified platform for operational and financial management. The project aims to provide a modern SaaS solution with a mountain resort-inspired, mobile-first design system.
 
 ## User Preferences
 
@@ -10,282 +10,48 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
+### Frontend
 
-**Framework Stack**
-- **React 18** with TypeScript for type-safe UI development
-- **Vite** as the build tool and development server
-- **Wouter** for lightweight client-side routing
-- **TanStack Query (React Query)** for server state management and caching
-- **React Hook Form** with Zod validation for form handling
+The frontend uses **React 18** with **TypeScript**, built with **Vite**. **Wouter** handles routing, and **TanStack Query** manages server state. Forms are built with **React Hook Form** and **Zod** for validation. The UI design system leverages **shadcn/ui**, **Tailwind CSS**, and **Radix UI** primitives, styled with a custom mountain-themed color palette, supporting light/dark modes and mobile-first responsiveness.
 
-**UI Design System**
-- **shadcn/ui** component library with custom theming
-- **Tailwind CSS** for utility-first styling with custom design tokens
-- **Radix UI** primitives for accessible, unstyled components
-- **CVA (Class Variance Authority)** for component variant management
+### Backend
 
-**Design Approach**
-- Implements a design system inspired by modern SaaS dashboards (Linear, Notion)
-- Custom color palette featuring mountain-themed colors (Mountain Teal, Sky Blue, Deep Forest)
-- Semantic color coding for room/booking statuses (Available, Occupied, Maintenance, Cleaning)
-- Light and dark mode support with theme persistence
-- Responsive sidebar navigation with collapsible states
-- Font stack: Inter (primary), Poppins (headings), JetBrains Mono (data/numbers)
-
-**State Management Pattern**
-- Server state: TanStack Query with infinite stale time and disabled refetching
-- Client state: React Context for theme and authentication
-- Form state: React Hook Form with Zod schema validation
-- Session state: Server-managed via express-session with PostgreSQL store
-
-### Backend Architecture
-
-**Server Framework**
-- **Express.js** on Node.js with ESM modules
-- **TypeScript** throughout for type safety
-- RESTful API design pattern at `/api/*` endpoints
-
-**API Structure**
-- Authentication routes: `/api/auth/*` (login, user profile)
-- User management routes: `/api/users` (GET all users, PATCH role updates) - admin only
-- Resource CRUD routes: `/api/{properties|rooms|bookings|guests|orders|bills|leases|expenses}`
-- Active bookings route: `/api/bookings/active` (GET) - Returns all checked-in bookings with running totals, food orders, and guest details
-- Checkout route: `/api/bookings/checkout` (POST) - Server-side bill calculation and checkout processing
-- Expense category routes: `/api/expense-categories` (GET all, POST create, PATCH update, DELETE) with default category seeding on startup
-- Financial routes: `/api/leases/:id/payments`, `/api/financials/:propertyId`
-- Aggregated data routes: `/api/dashboard/stats`, `/api/analytics`
-- Status update routes: `/api/orders/:id/status` for workflow management
-
-**Request/Response Handling**
-- JSON body parsing with raw buffer capture (for potential webhook verification)
-- URL-encoded form data support
-- Custom request logging middleware for API routes (truncated at 80 chars)
-- Error responses with status codes and descriptive messages
-
-**Development Workflow**
-- Hot module replacement in development via Vite middleware mode
-- Production builds combine client (Vite) and server (esbuild) bundles
-- Separate development (`tsx server/index.ts`) and production (`node dist/index.js`) entry points
+The backend is built with **Express.js** on **Node.js** using **TypeScript**, following a RESTful API design. It handles authentication, user management, CRUD operations for core resources (properties, rooms, bookings, etc.), and financial transactions. Key features include active booking dashboards, checkout processing with bill calculation, and comprehensive expense management. Development uses hot module replacement, and production builds combine client and server bundles.
 
 ### Data Storage
 
-**Database**
-- **PostgreSQL** via Neon serverless with WebSocket support
-- **Drizzle ORM** for type-safe database queries and migrations
-- Connection pooling via `@neondatabase/serverless`
-
-**Schema Design**
-- **Users**: Authentication profiles with role-based access (admin, manager, staff, kitchen)
-- **Properties**: Multi-property support with location and contact details
-- **Rooms**: Room inventory with status tracking, pricing, and amenities
-- **Guests**: Guest profiles with stay history and preferences
-- **Bookings**: Reservation management with check-in/out tracking and status workflow
-- **Menu Items**: Restaurant catalog with pricing and availability
-- **Orders**: Food order tracking with kitchen workflow statuses
-- **Bills**: Invoicing and payment status tracking
-- **Extra Services**: Additional billable services beyond room and food
-- **Property Leases**: Lease agreements with landlord details, total amount, start/end dates, payment frequency
-- **Lease Payments**: Individual lease payment records with amount, date, and method
-- **Property Expenses**: Operating expense tracking with categoryId reference, amount, date, and property association
-- **Expense Categories**: Customizable expense categories with keyword arrays for auto-categorization, property-specific or default categories
-- **Bank Transactions**: Scaffolded for future bank statement import (uploadId, rawDescription, auto-categorization support)
-
-**Data Relationships**
-- Properties → Rooms (one-to-many)
-- Properties → Leases (one-to-many)
-- Properties → Expenses (one-to-many)
-- Properties → Expense Categories (one-to-many, optional property-specific categories)
-- Expense Categories → Expenses (one-to-many)
-- Leases → Payments (one-to-many)
-- Guests → Bookings (one-to-many)
-- Rooms → Bookings (one-to-many)
-- Bookings → Bills (one-to-one)
-- Orders linked to bookings/guests for consolidated billing
-
-**Validation Strategy**
-- Drizzle Zod integration generates insert schemas from table definitions
-- Client-side validation via React Hook Form + Zod resolvers
-- Server-side validation using the same Zod schemas (shared via `@shared/schema`)
-- Date coercion via `z.coerce.date()` for timestamp fields in leases, payments, and expenses
-- Backend validates all financial data with Zod schemas before database insertion
+**PostgreSQL** via Neon serverless is the primary database, accessed using **Drizzle ORM** for type-safe queries and migrations. The schema includes tables for users (with role-based access), properties, rooms, guests, bookings, menu items, orders, bills, extra services, property leases, lease payments, and property expenses with customizable categories and keyword-based auto-categorization. Data validation is enforced client-side with Zod and server-side using shared Zod schemas.
 
 ### Authentication & Authorization
 
-**Authentication Provider**
-- **Replit Auth** with OpenID Connect (OIDC)
-- Passport.js strategy integration
-- Session-based authentication with secure HTTP-only cookies
+Authentication is handled by **Replit Auth** with OpenID Connect (OIDC) via Passport.js, using session-based authentication with secure HTTP-only cookies stored in PostgreSQL. Authorization is role-based (admin, manager, staff, kitchen) with property-specific assignments, ensuring granular access control. Security measures include HTTPS-only cookies, environment variable-secured session secrets, and CSRF protection.
 
-**Session Management**
-- PostgreSQL-backed sessions via `connect-pg-simple`
-- 7-day session TTL with secure cookie configuration
-- Session table separate from application data
+### Core Features
 
-**Authorization Levels**
-- Role-based access control (admin, manager, staff, kitchen)
-- **Admin**: Full system access including user management
-- **Manager**: Operations, billing, reporting, and property management
-- **Staff**: Basic access to rooms, bookings, and kitchen
-- **Kitchen**: Kitchen order management only
-- Property-specific staff assignments (`assignedPropertyId`)
-- Route protection via `isAuthenticated` middleware
-- UI adapts navigation based on user role
-- User Management page (admin-only) for role assignment and property allocation
-
-**Security Measures**
-- HTTPS-only cookies in production
-- Session secret via environment variable
-- CSRF protection via session-based tokens
-- Restricted file system access in development
+- **Multi-Property Management**: Supports managing multiple resort properties from a single interface.
+- **Booking & Guest Management**: Comprehensive booking coordination, guest tracking, and advanced pricing options.
+- **Restaurant & Order Management**: Integrates restaurant operations, order tracking, and kitchen workflow.
+- **Financial Tracking**: Manages property lease agreements, payments, expenses with auto-categorization, and generates P&L reports.
+- **Active Bookings Dashboard**: Real-time monitoring of checked-in guests with running totals and quick checkout.
+- **Room Availability Calendar**: Visual calendar for room availability and occupancy across properties.
+- **Bill Management**: Detailed bill viewing, generation, and professional printing with itemized charges.
+- **Booking Editing**: Allows staff to modify existing reservations, including dates, room assignments, and pricing.
 
 ## External Dependencies
 
 ### Third-Party Services
 
-**Authentication**
-- **Replit Auth OIDC** - User authentication and identity management
-- Discovery endpoint: `process.env.ISSUER_URL` (defaults to replit.com/oidc)
-
-**Database**
-- **Neon Serverless PostgreSQL** - Primary data store
-- Connection string via `process.env.DATABASE_URL`
-- WebSocket support for serverless environments
-
-**Development Tools**
-- **Replit Vite Plugins** - Runtime error overlay, cartographer, dev banner
-- Conditional loading based on `REPL_ID` environment variable
+-   **Replit Auth OIDC**: User authentication and identity management.
+-   **Neon Serverless PostgreSQL**: Primary database service.
 
 ### Key NPM Packages
 
-**Core Dependencies**
-- `express` - Web server framework
-- `drizzle-orm` - Type-safe ORM
-- `@neondatabase/serverless` - PostgreSQL client
-- `react` + `react-dom` - UI framework
-- `@tanstack/react-query` - Server state management
-- `wouter` - Client-side routing
-
-**UI Component Libraries**
-- `@radix-ui/react-*` - 25+ accessible component primitives
-- `tailwindcss` - Utility-first CSS
-- `class-variance-authority` - Component variant management
-- `lucide-react` - Icon library
-
-**Form & Validation**
-- `react-hook-form` - Form state management
-- `zod` - Schema validation
-- `@hookform/resolvers` - Zod integration
-- `drizzle-zod` - Schema generation from Drizzle tables
-
-**Date Handling**
-- `date-fns` - Date formatting and manipulation
-
-**Build Tools**
-- `vite` - Frontend build tool and dev server
-- `esbuild` - Backend bundler
-- `typescript` - Type checking
-- `tsx` - TypeScript execution for development
-
-**Session & Auth**
-- `express-session` - Session middleware
-- `connect-pg-simple` - PostgreSQL session store
-- `passport` - Authentication middleware
-- `openid-client` - OIDC client implementation
-- `memoizee` - OIDC config caching
+-   **Backend**: `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`.
+-   **Frontend**: `react`, `react-dom`, `@tanstack/react-query`, `wouter`, `react-hook-form`, `zod`, `date-fns`.
+-   **UI/Styling**: `@radix-ui/react-*`, `tailwindcss`, `class-variance-authority`, `lucide-react`.
+-   **Build Tools**: `vite`, `esbuild`, `typescript`, `tsx`.
 
 ### Environment Configuration
 
-**Required Variables**
-- `DATABASE_URL` - PostgreSQL connection string
-- `SESSION_SECRET` - Session encryption key
-- `REPL_ID` - Replit workspace identifier
-- `ISSUER_URL` - OIDC provider URL (optional, defaults provided)
-- `REPLIT_DOMAINS` - Allowed domains for OIDC redirect
-
-**Optional Variables**
-- `NODE_ENV` - Environment mode (development/production)
-
-## Recent Features
-
-### Active Bookings Dashboard (October 2025)
-A comprehensive dashboard for managing currently checked-in guests with real-time monitoring and quick checkout capabilities.
-
-**Key Features:**
-- View all guests with status "checked-in" in a single dashboard
-- Real-time running totals showing room charges, food orders, and extra services
-- Nights stayed calculation from check-in date to present
-- Live food order feed for each active booking
-- Direct checkout functionality with payment method selection
-- Integrated bill generation during checkout
-
-**Future Enhancement:**
-- **SMS/WhatsApp Bill Delivery**: Send final bills directly to guest's mobile via WhatsApp or SMS
-  - Requires Twilio integration setup
-  - Use Replit's Twilio connector (`connector:ccfg_twilio_01K69QJTED9YTJFE2SJ7E4SY08`)
-  - Will need TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER secrets
-  - API endpoint ready for integration at `/api/bookings/checkout`
-
-### Edit Booking Feature (October 2025)
-Comprehensive booking editing capability allowing staff to modify existing reservations without creating new ones.
-
-**Key Features:**
-- Edit button (pencil icon) on each booking card for quick access
-- Full-featured edit dialog with all booking fields
-- Modify check-in/check-out dates to handle early arrivals or date changes
-- Change room assignments while preserving booking history
-- Update number of guests, custom pricing, and advance payments
-- Edit special requests and other booking details
-- Separate form instance prevents interference with new booking creation
-- Current room always visible in selector (marked "Current") even if occupied
-
-**Use Cases:**
-- Guest arrives early: Change check-in date to today and proceed with check-in
-- Room change requests: Reassign to different room without losing booking history
-- Date modifications: Extend or shorten stays
-- Price adjustments: Update custom pricing or advance payments
-- Guest count changes: Modify number of guests for existing reservation
-
-**Technical Implementation:**
-- Frontend: Separate edit form with pre-populated values from existing booking
-- Backend: PATCH `/api/bookings/:id` endpoint accepts partial updates
-- All rooms shown in edit dialog (not just available ones) to allow keeping current assignment
-- Real-time cache invalidation ensures UI reflects changes immediately
-
-### Bill Viewing and Printing Feature (October 2025)
-Comprehensive bill viewing and printing system allowing staff to view detailed bill breakdowns and print professional invoices.
-
-**Key Features:**
-- "View Details & Print" button on each bill card in the billing page
-- Detailed bill view dialog with complete breakdown of all charges
-- Professional invoice layout with property branding, guest information, and itemized charges
-- Native browser print functionality with print-optimized styling
-- Real-time data fetching ensures latest bill information on every view
-- Type-safe implementation using shared schema types
-
-**Bill Details Include:**
-- Property name and contact information
-- Guest details (name, email, phone)
-- Booking information (room number, room type, check-in/out dates, number of guests)
-- Itemized charges breakdown:
-  - Room charges (nights × rate per night)
-  - Food orders with item names, quantities, and prices
-  - Extra services (spa, laundry, etc.)
-- Financial summary with subtotal, GST (18%), service charge (10%), advance payment, and balance due
-- Invoice number and payment status
-- Professional thank you message and contact details
-
-**Technical Implementation:**
-- Backend: GET `/api/bills/:id/details` endpoint fetches enriched bill data with guest, booking, room, property, orders, and extra services
-- Frontend: React Query with `staleTime: 0` ensures fresh data on every dialog open
-- Type-safe throughout using shared schema types (Guest, Room, Property, Order)
-- Proper state management clears selection when dialog closes
-- Print-optimized CSS classes hide UI elements and format invoice for printing
-- Responsive design works on desktop and mobile devices
-
-**Use Cases:**
-- View complete bill breakdown before checkout
-- Print invoices for guest records
-- Review past bills and payment history
-- Verify charges and totals
-- Provide professional printed invoices to guests
+-   **Required**: `DATABASE_URL`, `SESSION_SECRET`, `REPL_ID`.
+-   **Optional**: `ISSUER_URL`, `REPLIT_DOMAINS`, `NODE_ENV`.

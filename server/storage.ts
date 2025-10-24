@@ -46,7 +46,7 @@ import {
   type InsertBankTransaction,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, lt, gt, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, gt, sql, or } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -724,15 +724,19 @@ export class DatabaseStorage implements IStorage {
       .from(rooms)
       .where(eq(rooms.propertyId, propertyId));
 
+    // Find bookings that overlap with the requested dates
     const overlappingBookings = await db
       .select({ roomId: bookings.roomId })
       .from(bookings)
       .where(
         and(
           eq(bookings.propertyId, propertyId),
-          sql`${bookings.status} IN ('confirmed', 'checked-in')`,
-          sql`${bookings.checkInDate} < ${checkOut.toISOString()}`,
-          sql`${bookings.checkOutDate} > ${checkIn.toISOString()}`
+          or(
+            eq(bookings.status, 'confirmed'),
+            eq(bookings.status, 'checked-in')
+          ),
+          lt(bookings.checkInDate, checkOut),
+          gt(bookings.checkOutDate, checkIn)
         )
       );
 
