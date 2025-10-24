@@ -702,7 +702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate totals
       const subtotal = roomCharges + foodCharges + extraCharges;
-      const gstRate = 18;
+      const gstRate = 5; // Changed from 18% to 5% (default when GST is applied)
       const gstAmount = includeGst ? (subtotal * gstRate) / 100 : 0;
       const serviceChargeRate = 10;
       const serviceChargeAmount = includeServiceCharge ? (subtotal * serviceChargeRate) / 100 : 0;

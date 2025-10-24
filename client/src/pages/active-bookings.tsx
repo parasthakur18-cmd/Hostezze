@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Hotel, User, Calendar, DollarSign, UtensilsCrossed, LogOut, Phone } from "lucide-react";
+import { Hotel, User, Calendar, DollarSign, UtensilsCrossed, LogOut, Phone, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
@@ -70,11 +70,25 @@ export default function ActiveBookings() {
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [discountType, setDiscountType] = useState<string>("none");
   const [discountValue, setDiscountValue] = useState<string>("");
-  const [includeGst, setIncludeGst] = useState<boolean>(true);
-  const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(true);
+  const [includeGst, setIncludeGst] = useState<boolean>(false); // Changed default from true to false
+  const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(false); // Changed default from true to false
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: activeBookings, isLoading } = useQuery<ActiveBooking[]>({
     queryKey: ["/api/bookings/active"],
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
+
+  // Filter bookings based on search query
+  const filteredBookings = activeBookings?.filter((booking) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      booking.guest.fullName.toLowerCase().includes(query) ||
+      booking.room.roomNumber.toLowerCase().includes(query) ||
+      booking.id.toString().includes(query) ||
+      booking.guest.phone.includes(query)
+    );
   });
 
   const checkoutMutation = useMutation({
@@ -106,8 +120,8 @@ export default function ActiveBookings() {
       setPaymentMethod("cash");
       setDiscountType("none");
       setDiscountValue("");
-      setIncludeGst(true);
-      setIncludeServiceCharge(true);
+      setIncludeGst(false); // Reset to false (0% default)
+      setIncludeServiceCharge(false); // Reset to false (0% default)
     },
     onError: (error: any) => {
       toast({
@@ -145,21 +159,18 @@ export default function ActiveBookings() {
 
   // Calculate total amount with optional GST/Service Charge
   const calculateTotalWithCharges = (booking: ActiveBooking, includeGst: boolean, includeServiceCharge: boolean) => {
-    // The server sends charges with both GST (18%) and Service Charge (10%) included
-    // We need to reverse calculate the base subtotal and reapply selected charges
-    const serverTotal = parseFloat(booking.charges.totalAmount);
+    // The server sends charges with subtotal only (no GST/Service by default)
+    // We apply GST (5%) and Service Charge (10%) based on checkbox selections
+    const subtotal = parseFloat(booking.charges.subtotal);
     
-    // Base subtotal = server total / (1.18 * 1.10) because server includes both by default
-    const baseSubtotal = serverTotal / 1.298;
-    
-    let calculatedTotal = baseSubtotal;
+    let calculatedTotal = subtotal;
     
     if (includeGst) {
-      calculatedTotal = calculatedTotal * 1.18;
+      calculatedTotal = calculatedTotal * 1.05; // Apply 5% GST
     }
     
     if (includeServiceCharge) {
-      calculatedTotal = calculatedTotal * 1.10;
+      calculatedTotal = calculatedTotal * 1.10; // Apply 10% Service Charge
     }
     
     return calculatedTotal;
@@ -188,17 +199,30 @@ export default function ActiveBookings() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold" data-testid="heading-active-bookings">
-          Active Bookings
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {activeBookings.length} {activeBookings.length === 1 ? "guest" : "guests"} currently checked in
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold" data-testid="heading-active-bookings">
+              Active Bookings
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {activeBookings?.length || 0} {activeBookings?.length === 1 ? "guest" : "guests"} currently checked in
+            </p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <Input
+            placeholder="Search by guest name, room number, or booking ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="max-w-md"
+            data-testid="input-search-active-bookings"
+          />
+        </div>
       </div>
 
       <div className="pb-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {activeBookings.map((booking) => (
+          {filteredBookings?.map((booking) => (
             <Card key={booking.id} className="flex flex-col" data-testid={`card-active-booking-${booking.id}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
@@ -439,7 +463,7 @@ export default function ActiveBookings() {
                     data-testid="checkbox-include-gst"
                   />
                   <Label htmlFor="include-gst" className="cursor-pointer font-normal">
-                    Include GST (18%)
+                    Include GST (5%)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">

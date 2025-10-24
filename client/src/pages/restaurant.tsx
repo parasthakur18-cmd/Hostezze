@@ -107,7 +107,9 @@ export default function Kitchen() {
                   {orderType === "restaurant" ? (
                     customerName || "Restaurant"
                   ) : showRoomNumber ? (
-                    `Room ${roomNumber}`
+                    `Room ${roomNumber}${customerName ? ` - ${customerName}` : ""}`
+                  ) : customerName ? (
+                    customerName
                   ) : (
                     "Guest Order"
                   )}
@@ -123,7 +125,7 @@ export default function Kitchen() {
                   <Badge variant="secondary" className="text-xs">Restaurant</Badge>
                 )}
               </div>
-              {orderType === "restaurant" && customerPhone && (
+              {customerPhone && (
                 <p className="text-xs text-muted-foreground mt-1">
                   📞 {customerPhone}
                 </p>

@@ -162,6 +162,12 @@ export default function QuickOrder() {
 
     if (orderType === "room") {
       orderData.roomId = parseInt(selectedRoom);
+      // Also include guest name and phone for room orders to display in kitchen
+      const roomGuest = roomsWithGuests?.find(r => r.roomId === parseInt(selectedRoom));
+      if (roomGuest) {
+        orderData.customerName = roomGuest.guestName;
+        orderData.customerPhone = roomGuest.guestPhone || "";
+      }
     } else {
       orderData.customerName = customerName;
       orderData.customerPhone = customerPhone;

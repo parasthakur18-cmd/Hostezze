@@ -42,6 +42,7 @@ export default function Bookings() {
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 
   const { data: properties } = useQuery<Property[]>({
