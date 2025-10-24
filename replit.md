@@ -62,6 +62,19 @@ Authentication is handled by **Replit Auth** with OpenID Connect (OIDC) via Pass
 
 ## Recent Feature Updates
 
+### Food Orders Report (October 2024)
+- **Sales Reporting**: New comprehensive food orders report page with date range filtering and analytics
+  - Date range options: Today, Last 7 days, Last 30 days, and Custom range
+  - Accurate date calculations: "Last 7 days" = today + 6 days back (exactly 7 days), "Last 30 days" = today + 29 days back (exactly 30 days)
+  - Custom range validation: Requires both start and end dates; shows error message and disables calculations/exports when incomplete
+  - Sales summary displays: Total orders count, total revenue, average order value
+  - Status breakdown: Visual distribution of pending, preparing, completed, and cancelled orders
+  - Detailed orders table: Shows date/time, room number, guest name, items ordered, total amount, and status
+  - CSV export functionality with all order details (disabled when custom range incomplete or no data available)
+  - Guest name resolution: Automatically fetches guest names from bookings when orders are linked to rooms
+  - Route: `/food-orders-report`, accessible to admin and manager roles
+  - Navigation: Added to sidebar with FileBarChart icon
+
 ### Payment & Messaging System (December 2024)
 - **Payment Status Tracking**: Added `paymentStatus` field to enquiries table with values: pending, received, refunded. Displayed with color-coded badges in the UI.
 - **Message Templates**: Created 6 default message templates for common scenarios (payment reminders, booking confirmations, check-in details, payment confirmations, check-out reminders, welcome messages). Templates support variable substitution like {guestName}, {advanceAmount}, etc.
