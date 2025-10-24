@@ -251,3 +251,41 @@ Comprehensive booking editing capability allowing staff to modify existing reser
 - Backend: PATCH `/api/bookings/:id` endpoint accepts partial updates
 - All rooms shown in edit dialog (not just available ones) to allow keeping current assignment
 - Real-time cache invalidation ensures UI reflects changes immediately
+
+### Bill Viewing and Printing Feature (October 2025)
+Comprehensive bill viewing and printing system allowing staff to view detailed bill breakdowns and print professional invoices.
+
+**Key Features:**
+- "View Details & Print" button on each bill card in the billing page
+- Detailed bill view dialog with complete breakdown of all charges
+- Professional invoice layout with property branding, guest information, and itemized charges
+- Native browser print functionality with print-optimized styling
+- Real-time data fetching ensures latest bill information on every view
+- Type-safe implementation using shared schema types
+
+**Bill Details Include:**
+- Property name and contact information
+- Guest details (name, email, phone)
+- Booking information (room number, room type, check-in/out dates, number of guests)
+- Itemized charges breakdown:
+  - Room charges (nights × rate per night)
+  - Food orders with item names, quantities, and prices
+  - Extra services (spa, laundry, etc.)
+- Financial summary with subtotal, GST (18%), service charge (10%), advance payment, and balance due
+- Invoice number and payment status
+- Professional thank you message and contact details
+
+**Technical Implementation:**
+- Backend: GET `/api/bills/:id/details` endpoint fetches enriched bill data with guest, booking, room, property, orders, and extra services
+- Frontend: React Query with `staleTime: 0` ensures fresh data on every dialog open
+- Type-safe throughout using shared schema types (Guest, Room, Property, Order)
+- Proper state management clears selection when dialog closes
+- Print-optimized CSS classes hide UI elements and format invoice for printing
+- Responsive design works on desktop and mobile devices
+
+**Use Cases:**
+- View complete bill breakdown before checkout
+- Print invoices for guest records
+- Review past bills and payment history
+- Verify charges and totals
+- Provide professional printed invoices to guests
