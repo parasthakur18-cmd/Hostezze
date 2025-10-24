@@ -725,25 +725,26 @@ export class DatabaseStorage implements IStorage {
       .from(rooms)
       .where(eq(rooms.propertyId, propertyId));
 
-    // Get all bookings for this property with confirmed or checked-in status
+    // Get ALL bookings for this property (we'll filter in JavaScript)
     const allBookings = await db
       .select()
       .from(bookings)
-      .where(
-        and(
-          eq(bookings.propertyId, propertyId),
-          inArray(bookings.status, ['confirmed', 'checked-in'])
-        )
-      );
+      .where(eq(bookings.propertyId, propertyId));
 
-    // Filter bookings that overlap with the requested dates (done in JavaScript)
+    // Filter to only confirmed or checked-in bookings that overlap with requested dates
     const overlappingBookings = allBookings.filter(booking => {
+      // Only check confirmed and checked-in bookings
+      if (booking.status !== 'confirmed' && booking.status !== 'checked-in') {
+        return false;
+      }
+
       const bookingCheckIn = new Date(booking.checkInDate);
       const bookingCheckOut = new Date(booking.checkOutDate);
       const requestCheckIn = new Date(checkIn);
       const requestCheckOut = new Date(checkOut);
       
       // Check if booking overlaps with requested dates
+      // Overlap exists if: booking starts before request ends AND booking ends after request starts
       return bookingCheckIn < requestCheckOut && bookingCheckOut > requestCheckIn;
     });
 
