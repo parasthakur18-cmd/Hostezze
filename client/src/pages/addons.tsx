@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertExtraServiceSchema, type ExtraService, type Booking } from "@shared/schema";
+import { insertExtraServiceSchema, type ExtraService, type Booking, type Guest, type Room } from "@shared/schema";
 import { z } from "zod";
 import { format } from "date-fns";
 import { Plus, Car, MapPin, Mountain, Percent, Trash2 } from "lucide-react";
@@ -48,7 +48,15 @@ export default function AddOnServices() {
 
   const { data: activeBookings = [] } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
-    select: (bookings) => bookings.filter(b => b.status === "checked-in" || b.status === "confirmed"),
+    select: (bookings) => bookings.filter(b => b.status === "checked-in"),
+  });
+
+  const { data: guests = [] } = useQuery<Guest[]>({
+    queryKey: ["/api/guests"],
+  });
+
+  const { data: rooms = [] } = useQuery<Room[]>({
+    queryKey: ["/api/rooms"],
   });
 
   const form = useForm({
@@ -118,7 +126,14 @@ export default function AddOnServices() {
 
   const getBookingInfo = (bookingId: number) => {
     const booking = activeBookings.find(b => b.id === bookingId);
-    return booking ? `Booking #${booking.id}` : `Booking #${bookingId}`;
+    if (!booking) return `Booking #${bookingId}`;
+    
+    const guest = guests.find(g => g.id === booking.guestId);
+    const room = rooms.find(r => r.id === booking.roomId);
+    const roomNumber = room?.roomNumber || booking.roomId;
+    const guestName = guest?.fullName || "Guest";
+    
+    return `Room ${roomNumber} - ${guestName}`;
   };
 
   const filteredServices = filterType === "all" 
@@ -148,7 +163,7 @@ export default function AddOnServices() {
                 Add Service
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Record Add-on Service</DialogTitle>
               </DialogHeader>
@@ -170,11 +185,18 @@ export default function AddOnServices() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {activeBookings.map((booking) => (
-                              <SelectItem key={booking.id} value={booking.id.toString()}>
-                                Booking #{booking.id} - Room {booking.roomId}
-                              </SelectItem>
-                            ))}
+                            {activeBookings.map((booking) => {
+                              const guest = guests.find(g => g.id === booking.guestId);
+                              const room = rooms.find(r => r.id === booking.roomId);
+                              const roomNumber = room?.roomNumber || booking.roomId;
+                              const guestName = guest?.fullName || "Guest";
+                              
+                              return (
+                                <SelectItem key={booking.id} value={booking.id.toString()}>
+                                  Room {roomNumber} - {guestName}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                         <FormMessage />
