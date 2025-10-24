@@ -719,54 +719,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAvailableRoomsForDates(propertyId: number, checkIn: Date, checkOut: Date): Promise<Room[]> {
-    try {
-      console.log('=== getAvailableRoomsForDates START ===');
-      console.log('Params:', { propertyId, checkIn, checkOut });
-      
-      // Get all rooms for this property
-      console.log('Fetching rooms...');
-      const allRooms = await db
-        .select()
-        .from(rooms)
-        .where(eq(rooms.propertyId, propertyId));
-      console.log(`Found ${allRooms.length} rooms for property ${propertyId}`);
-
-      // Get ALL bookings for this property (we'll filter in JavaScript)
-      console.log('Fetching bookings...');
-      const allBookings = await db
-        .select()
-        .from(bookings)
-        .where(eq(bookings.propertyId, propertyId));
-      console.log(`Found ${allBookings.length} bookings for property ${propertyId}`);
-
-      // Filter to only confirmed or checked-in bookings that overlap with requested dates
-      const overlappingBookings = allBookings.filter(booking => {
-        // Only check confirmed and checked-in bookings
-        if (booking.status !== 'confirmed' && booking.status !== 'checked-in') {
-          return false;
-        }
-
-        const bookingCheckIn = new Date(booking.checkInDate);
-        const bookingCheckOut = new Date(booking.checkOutDate);
-        const requestCheckIn = new Date(checkIn);
-        const requestCheckOut = new Date(checkOut);
-        
-        // Check if booking overlaps with requested dates
-        // Overlap exists if: booking starts before request ends AND booking ends after request starts
-        return bookingCheckIn < requestCheckOut && bookingCheckOut > requestCheckIn;
-      });
-      console.log(`Found ${overlappingBookings.length} overlapping bookings`);
-
-      const bookedRoomIds = new Set(overlappingBookings.map(b => b.roomId).filter(id => id !== null));
-      const availableRooms = allRooms.filter(room => !bookedRoomIds.has(room.id));
-      console.log(`Returning ${availableRooms.length} available rooms`);
-      console.log('=== getAvailableRoomsForDates END ===');
-      return availableRooms;
-    } catch (error) {
-      console.error('=== ERROR in getAvailableRoomsForDates ===');
-      console.error('Error:', error);
-      throw error;
-    }
+    console.log('=== getAvailableRoomsForDates called ===');
+    console.log('propertyId:', propertyId);
+    console.log('checkIn:', checkIn);
+    console.log('checkOut:', checkOut);
+    
+    // Get all rooms for this property - simple query
+    const allRooms = await db
+      .select()
+      .from(rooms)
+      .where(eq(rooms.propertyId, propertyId));
+    
+    console.log('Rooms fetched successfully:', allRooms.length);
+    
+    // Just return all rooms for now to test if this works
+    return allRooms;
   }
 
   // Property Lease operations
