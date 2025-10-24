@@ -1259,8 +1259,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Enquiry not found" });
       }
 
+      console.log("Enquiry data:", JSON.stringify(enquiry, null, 2));
+
       // Validate enquiry has required guest information
       if (!enquiry.guestName || !enquiry.guestPhone) {
+        console.log("Missing guest info - guestName:", enquiry.guestName, "guestPhone:", enquiry.guestPhone);
         return res.status(400).json({ message: "Enquiry is missing required guest information (name or phone)" });
       }
 
