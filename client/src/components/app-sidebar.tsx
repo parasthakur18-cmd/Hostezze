@@ -19,6 +19,7 @@ import {
   Plus,
   UserCog,
   ClipboardCheck,
+  FileBarChart,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -48,6 +49,7 @@ const adminMenuItems = [
   { title: "Restaurant", url: "/restaurant", icon: UtensilsCrossed },
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },
+  { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
   { title: "Add-ons", url: "/addons", icon: Plus },
   { title: "Billing", url: "/billing", icon: Receipt },
   { title: "Leases", url: "/leases", icon: IndianRupee },
@@ -69,6 +71,7 @@ const managerMenuItems = [
   { title: "Restaurant", url: "/restaurant", icon: UtensilsCrossed },
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },
+  { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
   { title: "Add-ons", url: "/addons", icon: Plus },
   { title: "Billing", url: "/billing", icon: Receipt },
   { title: "Leases", url: "/leases", icon: IndianRupee },

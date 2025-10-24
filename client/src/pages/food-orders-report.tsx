@@ -1,0 +1,385 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar, Download, UtensilsCrossed, DollarSign } from "lucide-react";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+
+interface Order {
+  id: number;
+  roomId: number;
+  bookingId: number | null;
+  guestId: number | null;
+  items: any[];
+  totalAmount: string;
+  status: string;
+  createdAt: string;
+  orderSource: string;
+  roomNumber: string;
+  specialInstructions: string | null;
+}
+
+interface Guest {
+  id: number;
+  fullName: string;
+  phone: string;
+}
+
+interface Booking {
+  id: number;
+  guestId: number;
+}
+
+export default function FoodOrdersReport() {
+  const [dateRange, setDateRange] = useState<string>("last7days");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+
+  const { data: orders, isLoading: ordersLoading } = useQuery<Order[]>({
+    queryKey: ["/api/orders"],
+    refetchInterval: 30000,
+  });
+
+  const { data: guests } = useQuery<Guest[]>({
+    queryKey: ["/api/guests"],
+  });
+
+  const { data: bookings } = useQuery<Booking[]>({
+    queryKey: ["/api/bookings"],
+  });
+
+  // Calculate date range
+  const getDateRange = () => {
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = endOfDay(now);
+
+    switch (dateRange) {
+      case "today":
+        startDate = startOfDay(now);
+        break;
+      case "last7days":
+        // Last 7 days means today + 6 days back = exactly 7 days
+        startDate = startOfDay(subDays(now, 6));
+        break;
+      case "last30days":
+        // Last 30 days means today + 29 days back = exactly 30 days
+        startDate = startOfDay(subDays(now, 29));
+        break;
+      case "custom":
+        if (customStartDate && customEndDate) {
+          startDate = startOfDay(new Date(customStartDate));
+          endDate = endOfDay(new Date(customEndDate));
+        } else {
+          // Invalid custom range - require both dates
+          startDate = startOfDay(subDays(now, 6));
+        }
+        break;
+      default:
+        startDate = startOfDay(subDays(now, 6));
+    }
+
+    return { startDate, endDate };
+  };
+
+  // Check if custom range is incomplete
+  const isCustomRangeIncomplete = dateRange === "custom" && (!customStartDate || !customEndDate);
+
+  // Filter orders by date range (return empty if custom range incomplete)
+  const { startDate, endDate } = getDateRange();
+  const filteredOrders = isCustomRangeIncomplete 
+    ? [] 
+    : orders?.filter((order) => {
+        const orderDate = new Date(order.createdAt);
+        return orderDate >= startDate && orderDate <= endDate;
+      });
+
+  // Get guest name for an order
+  const getGuestName = (order: Order) => {
+    if (order.guestId) {
+      const guest = guests?.find((g) => g.id === order.guestId);
+      return guest?.fullName || "Unknown Guest";
+    }
+    if (order.bookingId) {
+      const booking = bookings?.find((b) => b.id === order.bookingId);
+      if (booking) {
+        const guest = guests?.find((g) => g.id === booking.guestId);
+        return guest?.fullName || "Unknown Guest";
+      }
+    }
+    return order.orderSource === "guest" ? "Guest Order" : "Walk-in Customer";
+  };
+
+  // Calculate totals
+  const totalOrders = filteredOrders?.length || 0;
+  const totalRevenue = filteredOrders?.reduce((sum, order) => {
+    return sum + parseFloat(order.totalAmount || "0");
+  }, 0) || 0;
+
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  // Group by status
+  const ordersByStatus = filteredOrders?.reduce((acc, order) => {
+    acc[order.status] = (acc[order.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const handleExport = () => {
+    if (!filteredOrders || filteredOrders.length === 0) return;
+
+    const csvContent = [
+      ["Order ID", "Date", "Room", "Guest Name", "Items", "Amount", "Status"].join(","),
+      ...filteredOrders.map((order) => {
+        const items = Array.isArray(order.items)
+          ? order.items.map((item: any) => `${item.name} x${item.quantity}`).join("; ")
+          : "N/A";
+        return [
+          order.id,
+          format(new Date(order.createdAt), "dd MMM yyyy HH:mm"),
+          order.roomNumber || "N/A",
+          getGuestName(order),
+          `"${items}"`,
+          order.totalAmount,
+          order.status,
+        ].join(",");
+      }),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `food-orders-${format(startDate, "yyyy-MM-dd")}-to-${format(endDate, "yyyy-MM-dd")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (ordersLoading) {
+    return (
+      <div className="p-6">
+        <Skeleton className="h-10 w-64 mb-6" />
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="heading-food-orders-report">
+            Food Orders Report
+          </h1>
+          <p className="text-muted-foreground mt-1">View and analyze food order history</p>
+        </div>
+        <Button
+          onClick={handleExport}
+          variant="outline"
+          disabled={isCustomRangeIncomplete || !filteredOrders || filteredOrders.length === 0}
+          data-testid="button-export"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
+      </div>
+
+      {/* Date Range Filter */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Date Range
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-sm font-medium mb-2 block">Select Period</label>
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger data-testid="select-date-range">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last7days">Last 7 Days</SelectItem>
+                  <SelectItem value="last30days">Last 30 Days</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateRange === "custom" && (
+              <>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium mb-2 block">Start Date *</label>
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    data-testid="input-start-date"
+                  />
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium mb-2 block">End Date *</label>
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    data-testid="input-end-date"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="text-sm">
+              {dateRange === "custom" && (!customStartDate || !customEndDate) ? (
+                <span className="text-destructive">Please select both start and end dates</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Showing: {format(startDate, "MMM dd, yyyy")} - {format(endDate, "MMM dd, yyyy")}
+                </span>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total-orders">
+              {totalOrders}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {ordersByStatus?.delivered || 0} delivered, {ordersByStatus?.pending || 0} pending
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total-revenue">
+              ₹{totalRevenue.toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {totalOrders} order{totalOrders !== 1 ? "s" : ""}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-avg-order-value">
+              ₹{averageOrderValue.toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Per order average</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Orders Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Order Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!filteredOrders || filteredOrders.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <UtensilsCrossed className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No orders found for the selected date range</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Room</TableHead>
+                    <TableHead>Guest Name</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order) => (
+                    <TableRow key={order.id} data-testid={`row-order-${order.id}`}>
+                      <TableCell className="font-medium">#{order.id}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {format(new Date(order.createdAt), "MMM dd, yyyy")}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(order.createdAt), "HH:mm")}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{order.roomNumber || "N/A"}</Badge>
+                      </TableCell>
+                      <TableCell>{getGuestName(order)}</TableCell>
+                      <TableCell>
+                        <div className="max-w-xs">
+                          {Array.isArray(order.items) ? (
+                            <div className="text-sm">
+                              {order.items.map((item: any, idx: number) => (
+                                <div key={idx} className="truncate">
+                                  {item.name} x{item.quantity}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">No items</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        ₹{parseFloat(order.totalAmount || "0").toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            order.status === "delivered"
+                              ? "default"
+                              : order.status === "pending"
+                              ? "secondary"
+                              : "outline"
+                          }
+                        >
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

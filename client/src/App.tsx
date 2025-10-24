@@ -30,6 +30,7 @@ import AddOnServices from "@/pages/addons";
 import UsersManagement from "@/pages/users";
 import ActiveBookings from "@/pages/active-bookings";
 import RoomCalendar from "@/pages/room-calendar";
+import FoodOrdersReport from "@/pages/food-orders-report";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -64,6 +65,7 @@ function Router() {
           <Route path="/restaurant" component={Kitchen} />
           <Route path="/kitchen" component={Kitchen} />
           <Route path="/quick-order" component={QuickOrder} />
+          <Route path="/food-orders-report" component={FoodOrdersReport} />
           <Route path="/enquiries" component={Enquiries} />
           <Route path="/new-enquiry" component={NewEnquiry} />
           <Route path="/billing" component={Billing} />
