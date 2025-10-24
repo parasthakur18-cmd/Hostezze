@@ -213,14 +213,17 @@ export default function RoomCalendar() {
                       </div>
 
                       <div className="flex-1 flex flex-col justify-center items-center space-y-1">
-                        <div className="text-xs text-muted-foreground">
-                          {availableCount}/{totalRooms} available
+                        <div className="text-xs text-muted-foreground text-center">
+                          {availableCount}/{totalRooms}
+                        </div>
+                        <div className="text-xs text-center">
+                          available
                         </div>
                         <Badge
                           variant={availableCount === totalRooms ? "outline" : availableCount > 0 ? "secondary" : "destructive"}
-                          className="text-xs"
+                          className="text-[10px] px-1.5 py-0"
                         >
-                          {occupancyRate}% occupied
+                          {occupancyRate}%
                         </Badge>
                       </div>
                     </div>
