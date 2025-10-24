@@ -912,7 +912,7 @@ function CheckoutBillSummary({
   });
 
   const { data: extraServices } = useQuery<any[]>({
-    queryKey: ["/api/addons"],
+    queryKey: ["/api/extra-services"],
   });
 
   const checkoutMutation = useMutation({
