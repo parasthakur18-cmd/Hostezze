@@ -39,10 +39,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Room } from "@shared/schema";
+import type { Room, Property } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const enquiryFormSchema = z.object({
+  propertyId: z.coerce.number().int().min(1, "Please select a property"),
   guestName: z.string().min(2, "Name must be at least 2 characters"),
   guestPhone: z.string().min(10, "Phone number must be at least 10 digits"),
   guestEmail: z.string().email("Invalid email").optional().or(z.literal("")),
@@ -68,12 +69,18 @@ export default function NewEnquiry() {
   const { toast } = useToast();
   const [checkInDate, setCheckInDate] = useState<Date>();
   const [checkOutDate, setCheckOutDate] = useState<Date>();
+  const [selectedPropertyId, setSelectedPropertyId] = useState<number>();
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
+
+  const { data: properties } = useQuery<Property[]>({
+    queryKey: ["/api/properties"],
+  });
 
   const form = useForm<EnquiryFormData>({
     resolver: zodResolver(enquiryFormSchema),
     defaultValues: {
+      propertyId: undefined,
       guestName: "",
       guestPhone: "",
       guestEmail: "",
@@ -109,13 +116,13 @@ export default function NewEnquiry() {
     },
   });
 
-  const checkAvailability = async (checkIn: Date, checkOut: Date) => {
-    if (!checkIn || !checkOut || checkOut <= checkIn) return;
+  const checkAvailability = async (propertyId: number, checkIn: Date, checkOut: Date) => {
+    if (!propertyId || !checkIn || !checkOut || checkOut <= checkIn) return;
 
     setLoadingRooms(true);
     try {
       const response = await fetch(
-        `/api/rooms/availability?propertyId=1&checkIn=${checkIn.toISOString()}&checkOut=${checkOut.toISOString()}`
+        `/api/rooms/availability?propertyId=${propertyId}&checkIn=${checkIn.toISOString()}&checkOut=${checkOut.toISOString()}`
       );
       if (!response.ok) throw new Error("Failed to check availability");
       const rooms = await response.json();
@@ -124,8 +131,13 @@ export default function NewEnquiry() {
       if (rooms.length === 0) {
         toast({
           title: "No Rooms Available",
-          description: "No rooms are available for the selected dates.",
+          description: "No rooms are available for the selected dates at this property.",
           variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Rooms Found",
+          description: `${rooms.length} room(s) available for the selected dates.`,
         });
       }
     } catch (error) {
@@ -142,7 +154,7 @@ export default function NewEnquiry() {
 
   const onSubmit = (data: EnquiryFormData) => {
     const enquiryData = {
-      propertyId: 1,
+      propertyId: data.propertyId,
       guestName: data.guestName,
       guestPhone: data.guestPhone,
       guestEmail: data.guestEmail || null,
@@ -184,6 +196,42 @@ export default function NewEnquiry() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Property Selection */}
+              <FormField
+                control={form.control}
+                name="propertyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Property *</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        const propId = parseInt(value);
+                        field.onChange(propId);
+                        setSelectedPropertyId(propId);
+                        // Reset available rooms when property changes
+                        setAvailableRooms([]);
+                        form.setValue("roomId", undefined);
+                      }}
+                      value={field.value ? field.value.toString() : ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-property">
+                          <SelectValue placeholder="Select a property" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {properties?.map((property) => (
+                          <SelectItem key={property.id} value={property.id.toString()}>
+                            {property.name} - {property.location}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {/* Date Selection */}
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
@@ -219,8 +267,8 @@ export default function NewEnquiry() {
                             onSelect={(date) => {
                               field.onChange(date);
                               setCheckInDate(date);
-                              if (date && checkOutDate) {
-                                checkAvailability(date, checkOutDate);
+                              if (selectedPropertyId && date && checkOutDate) {
+                                checkAvailability(selectedPropertyId, date, checkOutDate);
                               }
                             }}
                             disabled={(date) =>
@@ -268,8 +316,8 @@ export default function NewEnquiry() {
                             onSelect={(date) => {
                               field.onChange(date);
                               setCheckOutDate(date);
-                              if (checkInDate && date) {
-                                checkAvailability(checkInDate, date);
+                              if (selectedPropertyId && checkInDate && date) {
+                                checkAvailability(selectedPropertyId, checkInDate, date);
                               }
                             }}
                             disabled={(date) =>
@@ -286,13 +334,21 @@ export default function NewEnquiry() {
               </div>
 
               {/* Room Selection */}
-              {checkInDate && checkOutDate && (
+              {!selectedPropertyId ? (
+                <div className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
+                  Please select a property first to check room availability
+                </div>
+              ) : !checkInDate || !checkOutDate ? (
+                <div className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
+                  Please select check-in and check-out dates to see available rooms
+                </div>
+              ) : (
                 <FormField
                   control={form.control}
                   name="roomId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Available Rooms *</FormLabel>
+                      <FormLabel>Available Rooms</FormLabel>
                       {loadingRooms ? (
                         <Skeleton className="h-10 w-full" />
                       ) : availableRooms.length === 0 ? (
