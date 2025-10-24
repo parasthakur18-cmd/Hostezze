@@ -1259,6 +1259,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Enquiry not found" });
       }
 
+      // Validate enquiry has required guest information
+      if (!enquiry.guestName || !enquiry.phone) {
+        return res.status(400).json({ message: "Enquiry is missing required guest information (name or phone)" });
+      }
+
       // Create or find guest
       let guestId: number;
       const existingGuests = await storage.getAllGuests();
