@@ -115,3 +115,11 @@ Authentication is handled by **Replit Auth** with OpenID Connect (OIDC) via Pass
   - Creates booking with "confirmed" status
   - Updates enquiry status to "confirmed" and payment status to "received"
   - Invalidates both enquiries and bookings cache for real-time UI updates
+
+### Real-Time Updates Fix (October 2025)
+- **Active Bookings Cache Invalidation**: Fixed critical real-time update issues for Active Bookings dashboard
+  - All booking create/update mutations now invalidate `/api/bookings/active` cache for instant UI updates
+  - Order status changes (especially "delivered") now trigger Active Bookings refresh to update running totals
+  - Enquiry confirmation mutation properly invalidates Active Bookings cache when converting to booking
+  - Cache invalidation pattern ensures seamless real-time updates across bookings, orders, and enquiries
+  - No page refresh needed - all changes reflect immediately on Active Bookings dashboard
