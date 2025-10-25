@@ -514,6 +514,63 @@ export default function Bookings() {
                     )}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="source"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Booking Source</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || "walk-in"}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-booking-source">
+                              <SelectValue placeholder="Select source" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="walk-in">Walk-in</SelectItem>
+                            <SelectItem value="phone">Phone</SelectItem>
+                            <SelectItem value="online">Online</SelectItem>
+                            <SelectItem value="self-generated">Self Generated</SelectItem>
+                            <SelectItem value="booking.com">Booking.com</SelectItem>
+                            <SelectItem value="airbnb">Airbnb</SelectItem>
+                            <SelectItem value="ota">OTA (Other)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="mealPlan"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Meal Plan</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || "EP"}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-booking-meal-plan">
+                              <SelectValue placeholder="Select meal plan" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="EP">EP - Room Only</SelectItem>
+                            <SelectItem value="CP">CP - Room + Breakfast</SelectItem>
+                            <SelectItem value="MAP">MAP - Room + Breakfast + Dinner</SelectItem>
+                            <SelectItem value="AP">AP - All Meals Included</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name="specialRequests"
@@ -815,6 +872,63 @@ export default function Bookings() {
                       <p className="text-xs text-muted-foreground">
                         Amount received in advance
                       </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="source"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Booking Source</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || "walk-in"}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-booking-source">
+                            <SelectValue placeholder="Select source" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="walk-in">Walk-in</SelectItem>
+                          <SelectItem value="phone">Phone</SelectItem>
+                          <SelectItem value="online">Online</SelectItem>
+                          <SelectItem value="self-generated">Self Generated</SelectItem>
+                          <SelectItem value="booking.com">Booking.com</SelectItem>
+                          <SelectItem value="airbnb">Airbnb</SelectItem>
+                          <SelectItem value="ota">OTA (Other)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="mealPlan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Meal Plan</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || "EP"}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-booking-meal-plan">
+                            <SelectValue placeholder="Select meal plan" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="EP">EP - Room Only</SelectItem>
+                          <SelectItem value="CP">CP - Room + Breakfast</SelectItem>
+                          <SelectItem value="MAP">MAP - Room + Breakfast + Dinner</SelectItem>
+                          <SelectItem value="AP">AP - All Meals Included</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
