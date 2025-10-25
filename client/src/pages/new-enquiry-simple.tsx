@@ -40,6 +40,8 @@ type EnquiryFormData = z.infer<typeof enquiryFormSchema>;
 export default function NewEnquirySimple() {
   const { toast } = useToast();
   const [selectedPropertyId, setSelectedPropertyId] = useState<number>();
+  const [checkInPopoverOpen, setCheckInPopoverOpen] = useState(false);
+  const [checkOutPopoverOpen, setCheckOutPopoverOpen] = useState(false);
 
   const { data: properties } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
@@ -164,7 +166,7 @@ export default function NewEnquirySimple() {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Check-in Date *</FormLabel>
-                      <Popover>
+                      <Popover open={checkInPopoverOpen} onOpenChange={setCheckInPopoverOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -188,7 +190,10 @@ export default function NewEnquirySimple() {
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setCheckInPopoverOpen(false);
+                            }}
                             disabled={(date) =>
                               date < new Date(new Date().setHours(0, 0, 0, 0))
                             }
@@ -207,7 +212,7 @@ export default function NewEnquirySimple() {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Check-out Date *</FormLabel>
-                      <Popover>
+                      <Popover open={checkOutPopoverOpen} onOpenChange={setCheckOutPopoverOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -231,7 +236,10 @@ export default function NewEnquirySimple() {
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setCheckOutPopoverOpen(false);
+                            }}
                             disabled={(date) =>
                               date < new Date(new Date().setHours(0, 0, 0, 0))
                             }
