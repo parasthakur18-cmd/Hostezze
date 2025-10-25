@@ -31,6 +31,7 @@ import UsersManagement from "@/pages/users";
 import ActiveBookings from "@/pages/active-bookings";
 import RoomCalendar from "@/pages/room-calendar";
 import FoodOrdersReport from "@/pages/food-orders-report";
+import MenuManagement from "@/pages/menu-management";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -65,6 +66,7 @@ function Router() {
           <Route path="/restaurant" component={Kitchen} />
           <Route path="/kitchen" component={Kitchen} />
           <Route path="/quick-order" component={QuickOrder} />
+          <Route path="/menu-management" component={MenuManagement} />
           <Route path="/food-orders-report" component={FoodOrdersReport} />
           <Route path="/enquiries" component={Enquiries} />
           <Route path="/new-enquiry" component={NewEnquiry} />
