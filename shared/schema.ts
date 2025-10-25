@@ -136,6 +136,8 @@ export const bookings = pgTable("bookings", {
   customPrice: decimal("custom_price", { precision: 10, scale: 2 }), // Custom price per night (overrides room price if set)
   advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }).notNull().default("0"), // Advance payment received
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  source: varchar("source", { length: 50 }).notNull().default("walk-in"), // Booking.com, Airbnb, Walk-in, Phone, Self Generated, Online, OTA
+  mealPlan: varchar("meal_plan", { length: 10 }).notNull().default("EP"), // EP, CP, MAP, AP
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
