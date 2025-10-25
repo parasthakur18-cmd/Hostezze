@@ -58,6 +58,7 @@ export default function QuickOrder() {
       setCustomerPhone("");
       setSpecialInstructions("");
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings/active"] });
     },
     onError: (error: Error) => {
       toast({
@@ -162,9 +163,10 @@ export default function QuickOrder() {
 
     if (orderType === "room") {
       orderData.roomId = parseInt(selectedRoom);
-      // Also include guest name and phone for room orders to display in kitchen
+      // Also include guest name, phone, and bookingId for room orders
       const roomGuest = roomsWithGuests?.find(r => r.roomId === parseInt(selectedRoom));
       if (roomGuest) {
+        orderData.bookingId = roomGuest.bookingId; // Link order to booking for checkout
         orderData.customerName = roomGuest.guestName;
         orderData.customerPhone = roomGuest.guestPhone || "";
       }
