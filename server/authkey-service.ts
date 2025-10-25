@@ -120,39 +120,50 @@ export class AuthkeyService {
         return { success: false, error: 'API key not configured' };
       }
 
-      // Format phone number
-      const formattedPhone = params.to.replace(/\s+/g, '').replace(/^(?!\+)/, '+');
+      // Format phone number - remove + and spaces, get just the digits
+      let phoneNumber = params.to.replace(/\s+/g, '').replace(/^\+/, '');
+      
+      // Extract country code and mobile number
+      // For India (+91), expect format: 91XXXXXXXXXX
+      let countryCode = '91'; // Default to India
+      let mobileNumber = phoneNumber;
+      
+      if (phoneNumber.startsWith('91') && phoneNumber.length > 10) {
+        countryCode = '91';
+        mobileNumber = phoneNumber.substring(2); // Remove country code
+      }
 
-      const response = await fetch(`${this.baseUrl}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'authkey': this.apiKey,
-        },
-        body: JSON.stringify({
-          authkey: this.apiKey,
-          mobiles: formattedPhone,
-          message: params.message,
-          sender: params.senderId || 'HOSTEZ', // Your DLT approved sender ID
-          route: '1', // 1 = Transactional, 4 = Promotional
-          country: '91', // India country code
-        }),
+      // Build URL with query parameters (authkey.io uses GET requests)
+      const queryParams = new URLSearchParams({
+        authkey: this.apiKey,
+        mobile: mobileNumber,
+        country_code: countryCode,
+        sms: params.message,
+        sender: params.senderId || 'HOSTEZ', // Your DLT approved sender ID
+      });
+
+      const url = `${this.baseUrl}?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
       });
 
       const data = await response.json();
 
-      if (response.ok && data.message_id) {
-        console.log(`[Authkey] SMS sent successfully. Message ID: ${data.message_id}`);
+      // Authkey.io returns status in the response
+      if (response.ok && (data.status === 'success' || data.Status === 'Success')) {
+        const messageId = data.message_id || data.MessageId || 'unknown';
+        console.log(`[Authkey] SMS sent successfully. Message ID: ${messageId}`);
         return {
           success: true,
-          messageId: data.message_id,
+          messageId,
           status: 'sent',
         };
       } else {
         console.error('[Authkey] SMS send failed:', data);
         return {
           success: false,
-          error: data.message || 'Failed to send SMS',
+          error: data.Message || data.message || 'Failed to send SMS',
         };
       }
     } catch (error: any) {
