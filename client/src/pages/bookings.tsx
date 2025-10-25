@@ -175,16 +175,6 @@ export default function Bookings() {
       return;
     }
 
-    // Validate ID proof upload
-    if (!quickGuestData.idProofImage) {
-      toast({
-        title: "Error",
-        description: "Guest ID proof upload is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Validate room selection
     if (!data.roomId) {
       toast({
@@ -195,13 +185,13 @@ export default function Bookings() {
       return;
     }
 
-    // Create guest first with ID proof
+    // Create guest first (ID proof is optional)
     try {
       const guestData = {
         fullName: quickGuestData.fullName,
         phone: quickGuestData.phone,
         email: quickGuestData.email || null,
-        idProofImage: quickGuestData.idProofImage,
+        idProofImage: quickGuestData.idProofImage || null,
         idProofType: null,
         idProofNumber: null,
         address: null,
@@ -347,7 +337,7 @@ export default function Bookings() {
                     data-testid="input-guest-email"
                   />
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">ID Proof Upload *</label>
+                    <label className="text-sm font-medium">ID Proof Upload (Optional)</label>
                     <ObjectUploader
                       maxNumberOfFiles={1}
                       maxFileSize={10485760}
@@ -376,7 +366,7 @@ export default function Bookings() {
                       }}
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      {quickGuestData.idProofImage ? "ID Uploaded ✓" : "Upload Guest ID"}
+                      {quickGuestData.idProofImage ? "ID Uploaded ✓" : "Upload Guest ID (Optional)"}
                     </ObjectUploader>
                   </div>
                 </div>
