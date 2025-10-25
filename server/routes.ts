@@ -633,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Checkout endpoint
   app.post("/api/bookings/checkout", isAuthenticated, async (req, res) => {
     try {
-      const { bookingId, paymentMethod, discountType, discountValue, includeGst = true, includeServiceCharge = true } = req.body;
+      const { bookingId, paymentMethod, discountType, discountValue, includeGst = true, includeServiceCharge = true, manualChargeName, manualChargeAmount } = req.body;
       
       // Validate input
       if (!bookingId || !paymentMethod) {
@@ -644,6 +644,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const booking = await storage.getBooking(bookingId);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // If manual charges are provided, create an extra service for them
+      if (manualChargeAmount && parseFloat(manualChargeAmount) > 0) {
+        const manualServiceData = {
+          bookingId,
+          serviceName: manualChargeName || "Additional Charge",
+          serviceType: "other",
+          amount: parseFloat(manualChargeAmount).toFixed(2),
+          serviceDate: new Date(),
+        };
+        await storage.createExtraService(manualServiceData);
       }
 
       // Fetch room to get price
@@ -663,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bookingOrders = allOrders.filter(o => o.bookingId === bookingId);
       const foodCharges = bookingOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || "0"), 0);
 
-      // Fetch and calculate extra service charges
+      // Fetch and calculate extra service charges (now including manual charges)
       const allExtras = await storage.getAllExtraServices();
       const bookingExtras = allExtras.filter(e => e.bookingId === bookingId);
       const extraCharges = bookingExtras.reduce((sum, extra) => sum + parseFloat(extra.amount || "0"), 0);

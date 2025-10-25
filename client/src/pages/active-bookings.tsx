@@ -80,6 +80,8 @@ export default function ActiveBookings() {
   const [includeGst, setIncludeGst] = useState<boolean>(false); // Changed default from true to false
   const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(false); // Changed default from true to false
   const [searchQuery, setSearchQuery] = useState("");
+  const [manualChargeName, setManualChargeName] = useState<string>("");
+  const [manualChargeAmount, setManualChargeAmount] = useState<string>("");
 
   const { data: activeBookings, isLoading } = useQuery<ActiveBooking[]>({
     queryKey: ["/api/bookings/active"],
@@ -99,13 +101,15 @@ export default function ActiveBookings() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, includeGst, includeServiceCharge }: { 
+    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, includeGst, includeServiceCharge, manualChargeName, manualChargeAmount }: { 
       bookingId: number; 
       paymentMethod: string;
       discountType?: string;
       discountValue?: number;
       includeGst: boolean;
       includeServiceCharge: boolean;
+      manualChargeName?: string;
+      manualChargeAmount?: number;
     }) => {
       return await apiRequest("POST", "/api/bookings/checkout", { 
         bookingId, 
@@ -114,6 +118,8 @@ export default function ActiveBookings() {
         discountValue: discountType === "none" ? null : discountValue,
         includeGst,
         includeServiceCharge,
+        manualChargeName: manualChargeName || null,
+        manualChargeAmount: manualChargeAmount || null,
       });
     },
     onSuccess: () => {
@@ -129,6 +135,8 @@ export default function ActiveBookings() {
       setDiscountValue("");
       setIncludeGst(false); // Reset to false (0% default)
       setIncludeServiceCharge(false); // Reset to false (0% default)
+      setManualChargeName("");
+      setManualChargeAmount("");
     },
     onError: (error: any) => {
       toast({
@@ -148,6 +156,8 @@ export default function ActiveBookings() {
       discountValue: discountType === "none" || !discountValue ? undefined : parseFloat(discountValue),
       includeGst,
       includeServiceCharge,
+      manualChargeName: manualChargeName || undefined,
+      manualChargeAmount: manualChargeAmount ? parseFloat(manualChargeAmount) : undefined,
     });
   };
 
@@ -164,13 +174,14 @@ export default function ActiveBookings() {
     }
   };
 
-  // Calculate total amount with optional GST/Service Charge
-  const calculateTotalWithCharges = (booking: ActiveBooking, includeGst: boolean, includeServiceCharge: boolean) => {
+  // Calculate total amount with optional GST/Service Charge and manual charges
+  const calculateTotalWithCharges = (booking: ActiveBooking, includeGst: boolean, includeServiceCharge: boolean, manualCharge?: number) => {
     // The server sends charges with subtotal only (no GST/Service by default)
     // We apply GST (5%) and Service Charge (10%) based on checkbox selections
     const subtotal = parseFloat(booking.charges.subtotal);
+    const manualAmount = manualCharge || 0;
     
-    let calculatedTotal = subtotal;
+    let calculatedTotal = subtotal + manualAmount;
     
     if (includeGst) {
       calculatedTotal = calculatedTotal * 1.05; // Apply 5% GST
@@ -387,14 +398,32 @@ export default function ActiveBookings() {
                   <span>Nights Stayed</span>
                   <span>{checkoutDialog.booking.nightsStayed} nights</span>
                 </div>
+                {manualChargeAmount && parseFloat(manualChargeAmount) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {manualChargeName || "Additional Charge"}
+                    </span>
+                    <span className="font-medium">+₹{parseFloat(manualChargeAmount).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total Amount</span>
                   <span data-testid="text-checkout-total">
-                    ₹{calculateTotalWithCharges(checkoutDialog.booking, includeGst, includeServiceCharge).toFixed(2)}
+                    ₹{calculateTotalWithCharges(
+                      checkoutDialog.booking, 
+                      includeGst, 
+                      includeServiceCharge,
+                      manualChargeAmount ? parseFloat(manualChargeAmount) : undefined
+                    ).toFixed(2)}
                   </span>
                 </div>
                 {(() => {
-                  const calculatedTotal = calculateTotalWithCharges(checkoutDialog.booking, includeGst, includeServiceCharge);
+                  const calculatedTotal = calculateTotalWithCharges(
+                    checkoutDialog.booking, 
+                    includeGst, 
+                    includeServiceCharge,
+                    manualChargeAmount ? parseFloat(manualChargeAmount) : undefined
+                  );
                   const discountAmt = calculateDiscount(
                     calculatedTotal,
                     discountType,
@@ -473,7 +502,35 @@ export default function ActiveBookings() {
                 </div>
               )}
 
-              <div className="space-y-4">
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-semibold text-sm">Additional Charges</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-charge-name">Charge Description (Optional)</Label>
+                  <Input
+                    id="manual-charge-name"
+                    type="text"
+                    value={manualChargeName}
+                    onChange={(e) => setManualChargeName(e.target.value)}
+                    placeholder="e.g., Damages, Late checkout, Extra cleaning"
+                    data-testid="input-manual-charge-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-charge-amount">Charge Amount (Optional)</Label>
+                  <Input
+                    id="manual-charge-amount"
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={manualChargeAmount}
+                    onChange={(e) => setManualChargeAmount(e.target.value)}
+                    placeholder="Enter amount (e.g., 500)"
+                    data-testid="input-manual-charge-amount"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
                 <div className="flex items-center space-x-2">
                   <Checkbox 
                     id="include-gst" 
