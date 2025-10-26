@@ -40,6 +40,8 @@ export default function Kitchen() {
   const { data: orders, isLoading } = useQuery<any[]>({
     queryKey: ["/api/orders"],
     refetchInterval: 5000, // Auto-refresh every 5 seconds to detect new orders
+    staleTime: 0, // Always consider data stale so it refetches
+    refetchOnWindowFocus: true, // Refetch when switching to this tab
   });
 
   // Play notification sound when new orders arrive
