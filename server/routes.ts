@@ -1235,6 +1235,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create booking from enquiry (using correct field names)
+      // Convert decimal values properly - they come from DB as strings or null
+      const customPriceValue = enquiry.priceQuoted != null ? String(enquiry.priceQuoted) : null;
+      const advanceAmountValue = enquiry.advanceAmount != null ? String(enquiry.advanceAmount) : "0";
+      
+      console.log("Creating booking with customPrice:", customPriceValue, "advanceAmount:", advanceAmountValue);
+      
       const booking = await storage.createBooking({
         propertyId: enquiry.propertyId,
         roomId: enquiry.roomId,
@@ -1242,8 +1248,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkInDate: enquiry.checkInDate,
         checkOutDate: enquiry.checkOutDate,
         numberOfGuests: enquiry.numberOfGuests,
-        customPrice: enquiry.priceQuoted ? String(enquiry.priceQuoted) : null,
-        advanceAmount: enquiry.advanceAmount ? String(enquiry.advanceAmount) : "0",
+        customPrice: customPriceValue,
+        advanceAmount: advanceAmountValue,
         status: "confirmed",
         specialRequests: enquiry.specialRequests,
         source: "walk-in",
