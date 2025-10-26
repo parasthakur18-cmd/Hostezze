@@ -1360,12 +1360,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Determine if this is WhatsApp or SMS based on messageType field
           if (communicationData.messageType === 'whatsapp') {
-            // For WhatsApp, we need to use templates
-            // For now, send as plain SMS if no template is configured
+            // For WhatsApp, using testing template with format:
+            // "Use {#otp#} as your OTP to access your {#company#}, OTP is confidential and valid for 5 mins This sms sent by authkey.io"
+            // Parameters: {#otp#} = booking/enquiry ID, {#company#} = Hostezee
+            const otpValue = communicationData.bookingId 
+              ? `BK${communicationData.bookingId}` 
+              : communicationData.enquiryId 
+                ? `ENQ${communicationData.enquiryId}` 
+                : 'INFO';
+            
             const result = await authkeyService.sendWhatsAppTemplate({
               to: communicationData.recipientPhone,
-              template: 'booking_confirmation', // Default template - should match authkey.io templates
-              parameters: [], // Will be populated from actual template variables
+              template: 'testing_template', // Template name in authkey.io (change for production)
+              parameters: [otpValue, 'Hostezee'], // {#otp#}, {#company#}
             });
             
             if (result.success) {
