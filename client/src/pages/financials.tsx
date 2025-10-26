@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Property } from "@shared/schema";
-import { TrendingUp, TrendingDown, DollarSign, Receipt, IndianRupee } from "lucide-react";
+import { TrendingUp, TrendingDown, Receipt, IndianRupee } from "lucide-react";
 
 export default function Financials() {
   const currentYear = new Date().getFullYear();
@@ -133,7 +133,7 @@ export default function Financials() {
         {!selectedProperty ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <DollarSign className="h-12 w-12 text-muted-foreground mb-4" />
+              <IndianRupee className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Select a property</h3>
               <p className="text-muted-foreground text-center">
                 Choose a property from the filter above to view its financial report
@@ -207,7 +207,7 @@ export default function Financials() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Profit Margin</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <IndianRupee className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent>

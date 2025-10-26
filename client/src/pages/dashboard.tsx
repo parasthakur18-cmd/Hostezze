@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Hotel, Calendar, Users, TrendingUp, DollarSign } from "lucide-react";
+import { Building2, Hotel, Calendar, Users, TrendingUp, IndianRupee } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
@@ -108,7 +108,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-chart-4" />
+              <IndianRupee className="h-5 w-5 text-chart-4" />
               Revenue This Month
             </CardTitle>
           </CardHeader>

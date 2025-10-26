@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, TrendingUp, Users, Hotel, DollarSign, Building2 } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Hotel, IndianRupee, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -25,7 +25,7 @@ export default function Analytics() {
     {
       title: "Total Revenue",
       value: `₹${analytics?.totalRevenue?.toLocaleString() || "0"}`,
-      icon: DollarSign,
+      icon: IndianRupee,
       description: "All-time revenue",
       color: "text-chart-5",
       bgColor: "bg-chart-5/10",
