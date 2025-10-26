@@ -65,24 +65,14 @@ const adminMenuItems = [
 
 const managerMenuItems = [
   { title: "Dashboard", url: "/", icon: Home },
-  { title: "Rooms", url: "/rooms", icon: Hotel },
   { title: "Bookings", url: "/bookings", icon: Calendar },
   { title: "Active Bookings", url: "/active-bookings", icon: ClipboardCheck },
   { title: "Room Calendar", url: "/room-calendar", icon: CalendarDays },
-  { title: "Guests", url: "/guests", icon: Users },
-  { title: "Enquiries", url: "/enquiries", icon: MessageSquare },
   { title: "Restaurant", url: "/restaurant", icon: UtensilsCrossed },
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },
   { title: "Menu Management", url: "/menu-management", icon: BookOpen },
   { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
-  { title: "Booking Analytics", url: "/booking-analytics", icon: BarChart3 },
-  { title: "Add-ons", url: "/addons", icon: Plus },
-  { title: "Billing", url: "/billing", icon: Receipt },
-  { title: "Leases", url: "/leases", icon: IndianRupee },
-  { title: "Expenses", url: "/expenses", icon: FileText },
-  { title: "Financials", url: "/financials", icon: TrendingUp },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
 ];
 
 const staffMenuItems = [
