@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ChefHat, Clock, CheckCircle, User, Phone, Bell, BellOff } from "lucide-react";
+import { ChefHat, Clock, CheckCircle, User, Phone, Bell, BellOff, Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -9,7 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { useNotificationSound } from "@/hooks/use-notification-sound";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Slider } from "@/components/ui/slider";
 
 const statusColors = {
   pending: "bg-amber-500 text-white",
@@ -20,8 +23,19 @@ const statusColors = {
 
 export default function Kitchen() {
   const { toast } = useToast();
-  const { playNotification, isEnabled, setIsEnabled } = useNotificationSound();
+  const { 
+    playNotification, 
+    isEnabled, 
+    setIsEnabled,
+    alarmTone,
+    setAlarmTone,
+    repeatCount,
+    setRepeatCount,
+    volume,
+    setVolume
+  } = useNotificationSound();
   const previousOrderCountRef = useRef<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const { data: orders, isLoading } = useQuery<any[]>({
     queryKey: ["/api/orders"],
@@ -218,16 +232,91 @@ export default function Kitchen() {
           </h1>
           <p className="text-muted-foreground mt-1">Manage incoming orders and preparation</p>
         </div>
-        <Button
-          variant={isEnabled ? "default" : "outline"}
-          size="icon"
-          onClick={() => setIsEnabled(!isEnabled)}
-          data-testid="button-toggle-notifications"
-          title={isEnabled ? "Disable notifications" : "Enable notifications"}
-        >
-          {isEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowSettings(!showSettings)}
+            data-testid="button-alarm-settings"
+            title="Alarm settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={isEnabled ? "default" : "outline"}
+            size="icon"
+            onClick={() => setIsEnabled(!isEnabled)}
+            data-testid="button-toggle-notifications"
+            title={isEnabled ? "Disable notifications" : "Enable notifications"}
+          >
+            {isEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
+
+      {showSettings && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Alarm Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Alarm Tone</label>
+                <Select value={alarmTone} onValueChange={(value: any) => setAlarmTone(value)}>
+                  <SelectTrigger data-testid="select-alarm-tone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="urgent">🚨 Urgent (Loud Alert)</SelectItem>
+                    <SelectItem value="bell">🔔 Bell (Pleasant)</SelectItem>
+                    <SelectItem value="chime">🎵 Chime (Soft)</SelectItem>
+                    <SelectItem value="classic">⏰ Classic (Beep-Beep)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Repeat Times</label>
+                <Select value={String(repeatCount)} onValueChange={(value) => setRepeatCount(Number(value))}>
+                  <SelectTrigger data-testid="select-repeat-count">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 time</SelectItem>
+                    <SelectItem value="2">2 times</SelectItem>
+                    <SelectItem value="3">3 times</SelectItem>
+                    <SelectItem value="4">4 times</SelectItem>
+                    <SelectItem value="5">5 times</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Volume: {Math.round(volume * 100)}%</label>
+                <Slider
+                  value={[volume * 100]}
+                  onValueChange={(values) => setVolume(values[0] / 100)}
+                  min={0}
+                  max={100}
+                  step={10}
+                  data-testid="slider-volume"
+                  className="mt-2"
+                />
+              </div>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => playNotification()}
+              data-testid="button-test-alarm"
+            >
+              🔊 Test Alarm
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
