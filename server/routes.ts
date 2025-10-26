@@ -623,7 +623,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      await storage.deleteBooking(parseInt(req.params.id));
+      const bookingId = parseInt(req.params.id);
+      
+      // Check if booking has associated bills (financial records)
+      const billsCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(bills)
+        .where(eq(bills.bookingId, bookingId));
+      
+      if (billsCount[0]?.count > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete this booking because it has billing records. Completed bookings with bills should be kept for financial records and audit purposes."
+        });
+      }
+      
+      // Check if booking has associated orders
+      const ordersCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(orders)
+        .where(eq(orders.bookingId, bookingId));
+      
+      if (ordersCount[0]?.count > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete this booking because it has food orders. Please delete or reassign the orders first."
+        });
+      }
+      
+      await storage.deleteBooking(bookingId);
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
