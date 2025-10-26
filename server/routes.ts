@@ -16,6 +16,7 @@ import {
   insertExpenseCategorySchema,
   insertBankTransactionSchema,
   orders,
+  bills,
   extraServices,
   enquiries,
 } from "@shared/schema";
