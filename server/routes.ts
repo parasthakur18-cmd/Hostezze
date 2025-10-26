@@ -612,7 +612,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      const booking = await storage.updateBooking(parseInt(req.params.id), req.body);
+      // Parse and validate the booking data - this will convert ISO strings to Date objects
+      const validatedData = insertBookingSchema.partial().parse(req.body);
+      const booking = await storage.updateBooking(parseInt(req.params.id), validatedData);
       res.json(booking);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
