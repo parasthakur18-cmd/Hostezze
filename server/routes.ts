@@ -230,6 +230,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/users/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      // Check if user is admin
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (currentUser?.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      
+      // Prevent self-deletion
+      if (id === req.user.claims.sub) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+      }
+      
+      // Check if this is the last admin
+      const allUsers = await storage.getAllUsers();
+      const adminUsers = allUsers.filter(u => u.role === "admin");
+      const userToDelete = await storage.getUser(id);
+      
+      if (userToDelete?.role === "admin" && adminUsers.length <= 1) {
+        return res.status(400).json({ message: "Cannot delete the last admin user" });
+      }
+      
+      await storage.deleteUser(id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Properties
   app.get("/api/properties", isAuthenticated, async (req, res) => {
     try {
