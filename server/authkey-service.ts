@@ -134,20 +134,20 @@ export class AuthkeyService {
       }
 
       // Build URL with template parameters
-      // Format: https://api.authkey.io/request?authkey=AUTHKEY&mobile=RecepientMobile&country_code=CountryCode&sid=1001&Hosteazze=Hosteazze&otp=1234
+      // Format: https://api.authkey.io/request?authkey=6c094eed3cd9b928&mobile=RecepientMobile&country_code=91&sid=28289&otp=XXXXXXX&company=XXXXXXX
       const queryParams = new URLSearchParams({
         authkey: this.apiKey,
         mobile: mobileNumber,
         country_code: countryCode,
-        sid: '1001', // Template ID in authkey.io (testing template)
-        Hosteazze: 'Hostezee', // Company name variable
+        sid: '28289', // Template ID in authkey.io (testing template)
         otp: params.message, // OTP/Booking ID variable
+        company: 'Hostezee', // Company name variable
       });
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
       
       console.log('[Authkey] Sending template SMS to:', mobileNumber, 'Country:', countryCode);
-      console.log('[Authkey] Template variables: sid=1001, Hosteazze=Hostezee, otp=', params.message);
+      console.log('[Authkey] Template variables: sid=28289, company=Hostezee, otp=', params.message);
       console.log('[Authkey] Request URL:', url.replace(this.apiKey, '***KEY***')); // Hide API key in logs
 
       const response = await fetch(url, {
