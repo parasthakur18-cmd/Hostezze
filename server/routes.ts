@@ -966,6 +966,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search café orders by name/phone (for merging at checkout)
+  app.get("/api/orders/search-cafe", isAuthenticated, async (req, res) => {
+    try {
+      const { customerName, customerPhone } = req.query;
+      
+      if (!customerName && !customerPhone) {
+        return res.status(400).json({ message: "Either customerName or customerPhone is required" });
+      }
+
+      // Search for restaurant orders that haven't been merged to a booking yet
+      const allOrders = await storage.getAllOrders();
+      const cafeOrders = allOrders.filter(order => {
+        // Must be restaurant type and not already linked to a booking
+        if (order.orderType !== "restaurant" || order.bookingId) {
+          return false;
+        }
+        
+        // Match by name or phone
+        const nameMatch = customerName ? 
+          order.customerName?.toLowerCase().includes((customerName as string).toLowerCase()) : 
+          false;
+        const phoneMatch = customerPhone ? 
+          order.customerPhone?.includes(customerPhone as string) : 
+          false;
+        
+        return customerName && customerPhone ? (nameMatch && phoneMatch) : (nameMatch || phoneMatch);
+      });
+
+      res.json(cafeOrders);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Merge café orders to a booking
+  app.patch("/api/orders/merge-to-booking", isAuthenticated, async (req, res) => {
+    try {
+      const { orderIds, bookingId } = req.body;
+      
+      if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+        return res.status(400).json({ message: "orderIds array is required" });
+      }
+      
+      if (!bookingId) {
+        return res.status(400).json({ message: "bookingId is required" });
+      }
+
+      // Verify booking exists
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Update each order to link to the booking
+      const updatedOrders = [];
+      for (const orderId of orderIds) {
+        const order = await storage.updateOrder(orderId, {
+          bookingId: bookingId,
+          guestId: booking.guestId,
+          roomId: booking.roomId,
+          propertyId: booking.propertyId,
+        });
+        updatedOrders.push(order);
+      }
+
+      res.json({ 
+        message: "Orders merged successfully", 
+        mergedOrders: updatedOrders 
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Extra Services
   app.get("/api/extra-services", isAuthenticated, async (req, res) => {
     try {
