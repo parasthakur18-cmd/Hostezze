@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ChefHat, Clock, CheckCircle, User, Phone, Bell, BellOff, Settings } from "lucide-react";
+import { ChefHat, Clock, CheckCircle, User, Phone, Bell, BellOff, Settings, Edit, Trash2, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,9 @@ import { useEffect, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const statusColors = {
   pending: "bg-amber-500 text-white",
@@ -36,12 +39,21 @@ export default function Kitchen() {
   } = useNotificationSound();
   const previousOrderCountRef = useRef<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [editDialog, setEditDialog] = useState<{ open: boolean; order: any | null }>({
+    open: false,
+    order: null,
+  });
+  const [editedItems, setEditedItems] = useState<Array<{ name: string; quantity: number; price: string }>>([]);
 
   const { data: orders, isLoading } = useQuery<any[]>({
     queryKey: ["/api/orders"],
     refetchInterval: 5000, // Auto-refresh every 5 seconds to detect new orders
     staleTime: 0, // Always consider data stale so it refetches
     refetchOnWindowFocus: true, // Refetch when switching to this tab
+  });
+  
+  const { data: menuItems } = useQuery<any[]>({
+    queryKey: ["/api/menu-items"],
   });
 
   // Play notification sound when new orders arrive
@@ -84,6 +96,67 @@ export default function Kitchen() {
       });
     },
   });
+  
+  const updateOrderMutation = useMutation({
+    mutationFn: async ({ id, items }: { id: number; items: any[] }) => {
+      const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+      return await apiRequest("PATCH", `/api/orders/${id}`, { items, totalAmount: totalAmount.toFixed(2) });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings/active"] });
+      toast({
+        title: "Success",
+        description: "Order updated successfully",
+      });
+      setEditDialog({ open: false, order: null });
+      setEditedItems([]);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Functions for managing edited items
+  const openEditDialog = (order: any) => {
+    setEditDialog({ open: true, order });
+    setEditedItems(JSON.parse(JSON.stringify(order.items))); // Deep clone
+  };
+  
+  const updateItemQuantity = (index: number, quantity: number) => {
+    const updated = [...editedItems];
+    updated[index].quantity = quantity;
+    setEditedItems(updated);
+  };
+  
+  const removeItem = (index: number) => {
+    if (editedItems.length === 1) {
+      toast({
+        title: "Cannot Remove",
+        description: "An order must have at least one item",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEditedItems(editedItems.filter((_, i) => i !== index));
+  };
+  
+  const addNewItem = (menuItem: any) => {
+    setEditedItems([...editedItems, {
+      name: menuItem.name,
+      quantity: 1,
+      price: menuItem.price,
+    }]);
+  };
+  
+  const saveOrder = () => {
+    if (!editDialog.order || editedItems.length === 0) return;
+    updateOrderMutation.mutate({ id: editDialog.order.id, items: editedItems });
+  };
 
   const activeOrders = orders?.filter((order) => order.status !== "delivered");
   const pendingOrders = activeOrders?.filter((order) => order.status === "pending");
@@ -185,6 +258,15 @@ export default function Kitchen() {
             </div>
 
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => openEditDialog(order)}
+                data-testid={`button-edit-order-${order.id}`}
+                title="Edit order"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
               {order.status === "pending" && (
                 <Button
                   className="flex-1"
@@ -375,6 +457,109 @@ export default function Kitchen() {
           </div>
         </div>
       </div>
+      
+      {/* Edit Order Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, order: null })}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl" data-testid="dialog-edit-order">
+          <DialogHeader>
+            <DialogTitle>Edit Order #{editDialog.order?.id}</DialogTitle>
+          </DialogHeader>
+          
+          {editDialog.order && (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <Label>Order Items</Label>
+                {editedItems.map((item, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <Input
+                        value={item.name}
+                        disabled
+                        className="bg-muted"
+                        data-testid={`input-item-name-${index}`}
+                      />
+                    </div>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
+                        data-testid={`input-item-quantity-${index}`}
+                      />
+                    </div>
+                    <div className="w-28">
+                      <Input
+                        value={`₹${item.price}`}
+                        disabled
+                        className="bg-muted"
+                        data-testid={`input-item-price-${index}`}
+                      />
+                    </div>
+                    {editedItems.length > 1 && (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        onClick={() => removeItem(index)}
+                        data-testid={`button-remove-item-${index}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="space-y-2 pt-4 border-t">
+                <Label>Add New Item</Label>
+                <Select onValueChange={(value) => {
+                  const menuItem = menuItems?.find(m => m.id === parseInt(value));
+                  if (menuItem) addNewItem(menuItem);
+                }}>
+                  <SelectTrigger data-testid="select-add-item">
+                    <SelectValue placeholder="Select menu item to add..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {menuItems?.filter(item => item.isAvailable).map((item) => (
+                      <SelectItem key={item.id} value={item.id.toString()}>
+                        {item.name} - ₹{item.price}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total Amount</span>
+                  <span data-testid="text-edit-total">
+                    ₹{editedItems.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditDialog({ open: false, order: null })}
+              disabled={updateOrderMutation.isPending}
+              data-testid="button-cancel-edit"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={saveOrder}
+              disabled={updateOrderMutation.isPending || editedItems.length === 0}
+              data-testid="button-save-order"
+            >
+              {updateOrderMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

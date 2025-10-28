@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Hotel, User, Calendar, IndianRupee, UtensilsCrossed, LogOut, Phone, Search } from "lucide-react";
+import { Hotel, User, Calendar, IndianRupee, UtensilsCrossed, LogOut, Phone, Search, Plus, Trash2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -80,8 +81,9 @@ export default function ActiveBookings() {
   const [includeGst, setIncludeGst] = useState<boolean>(false); // Changed default from true to false
   const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(false); // Changed default from true to false
   const [searchQuery, setSearchQuery] = useState("");
-  const [manualChargeName, setManualChargeName] = useState<string>("");
-  const [manualChargeAmount, setManualChargeAmount] = useState<string>("");
+  const [manualCharges, setManualCharges] = useState<Array<{ name: string; amount: string }>>([
+    { name: "", amount: "" }
+  ]);
 
   const { data: activeBookings, isLoading } = useQuery<ActiveBooking[]>({
     queryKey: ["/api/bookings/active"],
@@ -101,15 +103,14 @@ export default function ActiveBookings() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, includeGst, includeServiceCharge, manualChargeName, manualChargeAmount }: { 
+    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, includeGst, includeServiceCharge, manualCharges }: { 
       bookingId: number; 
       paymentMethod: string;
       discountType?: string;
       discountValue?: number;
       includeGst: boolean;
       includeServiceCharge: boolean;
-      manualChargeName?: string;
-      manualChargeAmount?: number;
+      manualCharges: Array<{ name: string; amount: string }>;
     }) => {
       return await apiRequest("POST", "/api/bookings/checkout", { 
         bookingId, 
@@ -118,8 +119,7 @@ export default function ActiveBookings() {
         discountValue: discountType === "none" ? null : discountValue,
         includeGst,
         includeServiceCharge,
-        manualChargeName: manualChargeName || null,
-        manualChargeAmount: manualChargeAmount || null,
+        manualCharges: manualCharges.filter(c => c.name && c.amount && parseFloat(c.amount) > 0),
       });
     },
     onSuccess: () => {
@@ -135,8 +135,7 @@ export default function ActiveBookings() {
       setDiscountValue("");
       setIncludeGst(false); // Reset to false (0% default)
       setIncludeServiceCharge(false); // Reset to false (0% default)
-      setManualChargeName("");
-      setManualChargeAmount("");
+      setManualCharges([{ name: "", amount: "" }]);
     },
     onError: (error: any) => {
       toast({
@@ -149,6 +148,21 @@ export default function ActiveBookings() {
 
   const handleCheckout = () => {
     if (!checkoutDialog.booking) return;
+    
+    // Check for pending food orders
+    const pendingOrders = checkoutDialog.booking.orders.filter(order => 
+      order.status === "pending" || order.status === "preparing" || order.status === "ready"
+    );
+    
+    if (pendingOrders.length > 0) {
+      toast({
+        title: "Checkout Not Allowed",
+        description: `${pendingOrders.length} food order(s) are still pending. Please complete or cancel them before checkout.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     checkoutMutation.mutate({
       bookingId: checkoutDialog.booking.id,
       paymentMethod,
@@ -156,8 +170,7 @@ export default function ActiveBookings() {
       discountValue: discountType === "none" || !discountValue ? undefined : parseFloat(discountValue),
       includeGst,
       includeServiceCharge,
-      manualChargeName: manualChargeName || undefined,
-      manualChargeAmount: manualChargeAmount ? parseFloat(manualChargeAmount) : undefined,
+      manualCharges,
     });
   };
 
@@ -175,11 +188,14 @@ export default function ActiveBookings() {
   };
 
   // Calculate total amount with optional GST/Service Charge and manual charges
-  const calculateTotalWithCharges = (booking: ActiveBooking, includeGst: boolean, includeServiceCharge: boolean, manualCharge?: number) => {
+  const calculateTotalWithCharges = (booking: ActiveBooking, includeGst: boolean, includeServiceCharge: boolean, charges: Array<{ name: string; amount: string }>) => {
     // The server sends charges with subtotal only (no GST/Service by default)
     // We apply GST (5%) and Service Charge (10%) based on checkbox selections
     const subtotal = parseFloat(booking.charges.subtotal);
-    const manualAmount = manualCharge || 0;
+    const manualAmount = charges.reduce((sum, charge) => {
+      const amount = parseFloat(charge.amount);
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
     
     let calculatedTotal = subtotal + manualAmount;
     
@@ -192,6 +208,24 @@ export default function ActiveBookings() {
     }
     
     return calculatedTotal;
+  };
+  
+  // Add new charge entry
+  const addManualCharge = () => {
+    setManualCharges([...manualCharges, { name: "", amount: "" }]);
+  };
+  
+  // Remove charge entry
+  const removeManualCharge = (index: number) => {
+    if (manualCharges.length === 1) return; // Keep at least one entry
+    setManualCharges(manualCharges.filter((_, i) => i !== index));
+  };
+  
+  // Update charge entry
+  const updateManualCharge = (index: number, field: "name" | "amount", value: string) => {
+    const updated = [...manualCharges];
+    updated[index][field] = value;
+    setManualCharges(updated);
   };
 
   if (isLoading) {
@@ -398,13 +432,17 @@ export default function ActiveBookings() {
                   <span>Nights Stayed</span>
                   <span>{checkoutDialog.booking.nightsStayed} nights</span>
                 </div>
-                {manualChargeAmount && parseFloat(manualChargeAmount) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {manualChargeName || "Additional Charge"}
-                    </span>
-                    <span className="font-medium">+₹{parseFloat(manualChargeAmount).toFixed(2)}</span>
-                  </div>
+                {manualCharges.some(c => c.amount && parseFloat(c.amount) > 0) && (
+                  <>
+                    {manualCharges.filter(c => c.amount && parseFloat(c.amount) > 0).map((charge, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {charge.name || "Additional Charge"}
+                        </span>
+                        <span className="font-medium">+₹{parseFloat(charge.amount).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </>
                 )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total Amount</span>
@@ -413,7 +451,7 @@ export default function ActiveBookings() {
                       checkoutDialog.booking, 
                       includeGst, 
                       includeServiceCharge,
-                      manualChargeAmount ? parseFloat(manualChargeAmount) : undefined
+                      manualCharges
                     ).toFixed(2)}
                   </span>
                 </div>
@@ -422,7 +460,7 @@ export default function ActiveBookings() {
                     checkoutDialog.booking, 
                     includeGst, 
                     includeServiceCharge,
-                    manualChargeAmount ? parseFloat(manualChargeAmount) : undefined
+                    manualCharges
                   );
                   const discountAmt = calculateDiscount(
                     calculatedTotal,
@@ -503,30 +541,74 @@ export default function ActiveBookings() {
               )}
 
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold text-sm">Additional Charges</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="manual-charge-name">Charge Description (Optional)</Label>
-                  <Input
-                    id="manual-charge-name"
-                    type="text"
-                    value={manualChargeName}
-                    onChange={(e) => setManualChargeName(e.target.value)}
-                    placeholder="e.g., Damages, Late checkout, Extra cleaning"
-                    data-testid="input-manual-charge-name"
-                  />
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Additional Charges</h3>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addManualCharge}
+                    data-testid="button-add-charge"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Charge
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="manual-charge-amount">Charge Amount (Optional)</Label>
-                  <Input
-                    id="manual-charge-amount"
-                    type="number"
-                    step="1"
-                    min="0"
-                    value={manualChargeAmount}
-                    onChange={(e) => setManualChargeAmount(e.target.value)}
-                    placeholder="Enter amount (e.g., 500)"
-                    data-testid="input-manual-charge-amount"
-                  />
+                
+                {checkoutDialog.booking && (() => {
+                  const pendingOrders = checkoutDialog.booking.orders.filter(order => 
+                    order.status === "pending" || order.status === "preparing" || order.status === "ready"
+                  );
+                  
+                  if (pendingOrders.length > 0) {
+                    return (
+                      <Alert variant="destructive" data-testid="alert-pending-orders">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          {pendingOrders.length} food order(s) are still pending. Please complete or cancel them before checkout.
+                        </AlertDescription>
+                      </Alert>
+                    );
+                  }
+                  return null;
+                })()}
+                
+                <div className="space-y-3">
+                  {manualCharges.map((charge, index) => (
+                    <div key={index} className="flex gap-2">
+                      <div className="flex-1 space-y-2">
+                        <Input
+                          type="text"
+                          value={charge.name}
+                          onChange={(e) => updateManualCharge(index, "name", e.target.value)}
+                          placeholder="e.g., Damages, Late checkout"
+                          data-testid={`input-charge-name-${index}`}
+                        />
+                      </div>
+                      <div className="w-32 space-y-2">
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={charge.amount}
+                          onChange={(e) => updateManualCharge(index, "amount", e.target.value)}
+                          placeholder="Amount"
+                          data-testid={`input-charge-amount-${index}`}
+                        />
+                      </div>
+                      {manualCharges.length > 1 && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          onClick={() => removeManualCharge(index)}
+                          data-testid={`button-remove-charge-${index}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
