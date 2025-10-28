@@ -17,16 +17,18 @@ interface CartItem extends MenuItem {
 }
 
 type OrderType = "room" | "restaurant" | null;
+type RestaurantCustomerType = "walk-in" | "in-house";
 
 export default function QuickOrder() {
   const [step, setStep] = useState(1);
   const [orderType, setOrderType] = useState<OrderType>(null);
+  const [restaurantCustomerType, setRestaurantCustomerType] = useState<RestaurantCustomerType>("walk-in");
   const [selectedRoom, setSelectedRoom] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [specialInstructions, setSpecialInstructions] = useState("");
-  const { toast } = useToast();
+  const { toast} = useToast();
 
   const { data: menuItems, isLoading: menuLoading } = useQuery<MenuItem[]>({
     queryKey: ["/api/menu-items"],
@@ -124,13 +126,23 @@ export default function QuickOrder() {
           return;
         }
       }
-      if (orderType === "restaurant" && (!customerName || !customerPhone)) {
-        toast({
-          title: "Customer Info Required",
-          description: "Please enter customer name and phone",
-          variant: "destructive",
-        });
-        return;
+      if (orderType === "restaurant") {
+        if (restaurantCustomerType === "walk-in" && (!customerName || !customerPhone)) {
+          toast({
+            title: "Customer Info Required",
+            description: "Please enter customer name and phone",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (restaurantCustomerType === "in-house" && !selectedRoom) {
+          toast({
+            title: "Room Required",
+            description: "Please select the in-house guest's room",
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
@@ -170,9 +182,21 @@ export default function QuickOrder() {
         orderData.customerName = roomGuest.guestName;
         orderData.customerPhone = roomGuest.guestPhone || "";
       }
-    } else {
-      orderData.customerName = customerName;
-      orderData.customerPhone = customerPhone;
+    } else if (orderType === "restaurant") {
+      if (restaurantCustomerType === "in-house") {
+        // In-house guest at café - link to their room bill
+        orderData.roomId = parseInt(selectedRoom);
+        const roomGuest = roomsWithGuests?.find(r => r.roomId === parseInt(selectedRoom));
+        if (roomGuest) {
+          orderData.bookingId = roomGuest.bookingId; // Link to booking for auto-merge to bill
+          orderData.customerName = roomGuest.guestName;
+          orderData.customerPhone = roomGuest.guestPhone || "";
+        }
+      } else {
+        // Walk-in customer
+        orderData.customerName = customerName;
+        orderData.customerPhone = customerPhone;
+      }
     }
 
     orderMutation.mutate(orderData);
@@ -295,26 +319,100 @@ export default function QuickOrder() {
                 </div>
               ) : (
                 <>
-                  <div>
-                    <Label htmlFor="customer-name">Customer Name *</Label>
-                    <Input
-                      id="customer-name"
-                      placeholder="Enter customer name"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      data-testid="input-customer-name"
-                    />
+                  {/* Restaurant Customer Type Toggle */}
+                  <div className="space-y-3">
+                    <Label>Customer Type</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRestaurantCustomerType("walk-in");
+                          setSelectedRoom("");
+                        }}
+                        className={`p-4 border-2 rounded-lg hover-elevate active-elevate-2 transition-all ${
+                          restaurantCustomerType === "walk-in" ? "border-primary bg-primary/5" : "border-border"
+                        }`}
+                        data-testid="button-customer-type-walkin"
+                      >
+                        <Store className="h-6 w-6 mx-auto mb-2 text-primary" />
+                        <p className="font-medium text-sm">Walk-in Customer</p>
+                        <p className="text-xs text-muted-foreground mt-1">Enter name & phone</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRestaurantCustomerType("in-house");
+                          setCustomerName("");
+                          setCustomerPhone("");
+                        }}
+                        className={`p-4 border-2 rounded-lg hover-elevate active-elevate-2 transition-all ${
+                          restaurantCustomerType === "in-house" ? "border-primary bg-primary/5" : "border-border"
+                        }`}
+                        data-testid="button-customer-type-inhouse"
+                      >
+                        <Hotel className="h-6 w-6 mx-auto mb-2 text-primary" />
+                        <p className="font-medium text-sm">In-House Guest</p>
+                        <p className="text-xs text-muted-foreground mt-1">Link to room bill</p>
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="customer-phone">Phone Number *</Label>
-                    <Input
-                      id="customer-phone"
-                      placeholder="Enter phone number"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      data-testid="input-customer-phone"
-                    />
-                  </div>
+
+                  {/* Show appropriate fields based on customer type */}
+                  {restaurantCustomerType === "walk-in" ? (
+                    <>
+                      <div>
+                        <Label htmlFor="customer-name">Customer Name *</Label>
+                        <Input
+                          id="customer-name"
+                          placeholder="Enter customer name"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          data-testid="input-customer-name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="customer-phone">Phone Number *</Label>
+                        <Input
+                          id="customer-phone"
+                          placeholder="Enter phone number"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          data-testid="input-customer-phone"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <Label htmlFor="inhouse-room-select">Guest's Room Number *</Label>
+                      {roomsLoading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : roomsError ? (
+                        <div className="text-sm text-destructive p-3 border border-destructive rounded-md">
+                          Error loading rooms. Please try again.
+                        </div>
+                      ) : roomsWithGuests && roomsWithGuests.length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
+                          No checked-in guests available. Please check in a guest first.
+                        </div>
+                      ) : (
+                        <Select value={selectedRoom} onValueChange={setSelectedRoom}>
+                          <SelectTrigger id="inhouse-room-select" data-testid="select-inhouse-guest-room">
+                            <SelectValue placeholder="Select guest's room" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roomsWithGuests?.map((room) => (
+                              <SelectItem key={room.roomId} value={room.roomId.toString()}>
+                                Room {room.roomNumber} - {room.guestName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        This order will be added to the guest's room bill
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -415,14 +513,41 @@ export default function QuickOrder() {
                     </>
                   ) : (
                     <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Name:</span>
-                        <span className="font-medium">{customerName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Phone:</span>
-                        <span className="font-medium font-mono">{customerPhone}</span>
-                      </div>
+                      {restaurantCustomerType === "in-house" ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Customer:</span>
+                            <span className="font-medium">In-House Guest</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Room:</span>
+                            <span className="font-medium">
+                              {roomsWithGuests?.find(r => r.roomId === parseInt(selectedRoom))?.roomNumber || "-"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Guest:</span>
+                            <span className="font-medium">
+                              {roomsWithGuests?.find(r => r.roomId === parseInt(selectedRoom))?.guestName || "-"}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Customer:</span>
+                            <span className="font-medium">Walk-in</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Name:</span>
+                            <span className="font-medium">{customerName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Phone:</span>
+                            <span className="font-medium font-mono">{customerPhone}</span>
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>

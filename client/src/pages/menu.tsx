@@ -34,12 +34,19 @@ export default function Menu() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const { toast } = useToast();
   
-  // Detect order type from URL query params
+  // Detect order type and room from URL query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const type = params.get("type");
+    const room = params.get("room");
+    
     if (type === "room" || type === "restaurant") {
       setOrderType(type);
+    }
+    
+    // Auto-fill room number if provided in URL (from QR code)
+    if (room && type === "room") {
+      setRoomNumber(room);
     }
   }, []);
 
@@ -250,7 +257,12 @@ export default function Menu() {
                                 value={roomNumber}
                                 onChange={(e) => setRoomNumber(e.target.value)}
                                 data-testid="input-room-number"
+                                readOnly={!!new URLSearchParams(window.location.search).get("room")}
+                                className={new URLSearchParams(window.location.search).get("room") ? "bg-muted" : ""}
                               />
+                              {new URLSearchParams(window.location.search).get("room") && (
+                                <p className="text-xs text-muted-foreground">Room number auto-filled from QR code</p>
+                              )}
                             </div>
                           </>
                         ) : (
