@@ -323,13 +323,13 @@ export default function Billing() {
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      Invoice #{bill.id}
+                      {(bill as any).guestName || `Invoice #${bill.id}`}
                       <Badge className={paymentStatusColors[bill.paymentStatus as keyof typeof paymentStatusColors]}>
                         {bill.paymentStatus}
                       </Badge>
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Created {format(new Date(bill.createdAt!), "PPP")}
+                      Created {format(new Date(bill.createdAt!), "PPP")} • Invoice #{bill.id}
                     </p>
                   </div>
                   <div className="text-right">

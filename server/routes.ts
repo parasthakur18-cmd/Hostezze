@@ -1011,7 +1011,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bills", isAuthenticated, async (req, res) => {
     try {
       const bills = await storage.getAllBills();
-      res.json(bills);
+      
+      // Enrich bills with guest names
+      const enrichedBills = await Promise.all(
+        bills.map(async (bill) => {
+          const guest = await storage.getGuest(bill.guestId);
+          return {
+            ...bill,
+            guestName: guest?.fullName || "Unknown Guest",
+          };
+        })
+      );
+      
+      res.json(enrichedBills);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

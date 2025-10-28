@@ -22,6 +22,7 @@ import {
   FileBarChart,
   BookOpen,
   LogOut,
+  QrCode,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -61,6 +62,7 @@ const adminMenuItems = [
   { title: "Financials", url: "/financials", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Users", url: "/users", icon: UserCog },
+  { title: "QR Codes", url: "/qr-codes", icon: QrCode },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -74,6 +76,7 @@ const managerMenuItems = [
   { title: "Quick Order", url: "/quick-order", icon: Phone },
   { title: "Menu Management", url: "/menu-management", icon: BookOpen },
   { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
+  { title: "QR Codes", url: "/qr-codes", icon: QrCode },
   { title: "Add-ons", url: "/addons", icon: Plus },
 ];
 

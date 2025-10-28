@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ShoppingCart, Plus, Minus, X, Check, UtensilsCrossed, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { type MenuItem } from "@shared/schema";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -25,10 +26,22 @@ interface CartItem extends MenuItem {
 
 export default function Menu() {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [orderType, setOrderType] = useState<"room" | "restaurant">("restaurant");
   const [roomNumber, setRoomNumber] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const { toast } = useToast();
+  
+  // Detect order type from URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get("type");
+    if (type === "room" || type === "restaurant") {
+      setOrderType(type);
+    }
+  }, []);
 
   const { data: menuItems, isLoading } = useQuery<MenuItem[]>({
     queryKey: ["/api/public/menu"],
@@ -45,6 +58,8 @@ export default function Menu() {
       });
       setCart([]);
       setRoomNumber("");
+      setCustomerName("");
+      setCustomerPhone("");
       setSpecialInstructions("");
       setIsCheckoutOpen(false);
     },
@@ -88,7 +103,7 @@ export default function Menu() {
   };
 
   const handleCheckout = () => {
-    if (!roomNumber) {
+    if (orderType === "room" && !roomNumber) {
       toast({
         title: "Room Number Required",
         description: "Please enter your room number",
@@ -96,9 +111,19 @@ export default function Menu() {
       });
       return;
     }
+    
+    if (orderType === "restaurant" && (!customerName || !customerPhone)) {
+      toast({
+        title: "Details Required",
+        description: "Please enter your name and phone number",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const orderData = {
-      roomId: parseInt(roomNumber),
+    const orderData: any = {
+      orderType,
+      orderSource: "guest",
       items: cart.map((item) => ({
         id: item.id,
         name: item.name,
@@ -108,6 +133,13 @@ export default function Menu() {
       totalAmount: calculateTotal().toFixed(2),
       specialInstructions: specialInstructions || null,
     };
+    
+    if (orderType === "room") {
+      orderData.roomId = parseInt(roomNumber);
+    } else {
+      orderData.customerName = customerName;
+      orderData.customerPhone = customerPhone;
+    }
 
     orderMutation.mutate(orderData);
   };
@@ -143,9 +175,11 @@ export default function Menu() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold font-serif flex items-center gap-2">
                 <UtensilsCrossed className="h-8 w-8 text-primary" />
-                Room Service Menu
+                {orderType === "room" ? "Room Service Menu" : "Café Menu"}
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">Order directly to your room</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {orderType === "room" ? "Order directly to your room" : "Order from our café"}
+              </p>
             </div>
             <Sheet open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
               <SheetTrigger asChild>
@@ -206,18 +240,54 @@ export default function Menu() {
                       ))}
 
                       <div className="border-t pt-4 space-y-3">
-                        <Input
-                          placeholder="Room Number *"
-                          value={roomNumber}
-                          onChange={(e) => setRoomNumber(e.target.value)}
-                          data-testid="input-room-number"
-                        />
-                        <Textarea
-                          placeholder="Special instructions (optional)"
-                          value={specialInstructions}
-                          onChange={(e) => setSpecialInstructions(e.target.value)}
-                          data-testid="input-special-instructions"
-                        />
+                        {orderType === "room" ? (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="room-number">Room Number *</Label>
+                              <Input
+                                id="room-number"
+                                placeholder="Enter your room number"
+                                value={roomNumber}
+                                onChange={(e) => setRoomNumber(e.target.value)}
+                                data-testid="input-room-number"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="customer-name">Name *</Label>
+                              <Input
+                                id="customer-name"
+                                placeholder="Enter your name"
+                                value={customerName}
+                                onChange={(e) => setCustomerName(e.target.value)}
+                                data-testid="input-customer-name"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="customer-phone">Phone Number *</Label>
+                              <Input
+                                id="customer-phone"
+                                type="tel"
+                                placeholder="Enter your phone number"
+                                value={customerPhone}
+                                onChange={(e) => setCustomerPhone(e.target.value)}
+                                data-testid="input-customer-phone"
+                              />
+                            </div>
+                          </>
+                        )}
+                        <div className="space-y-2">
+                          <Label htmlFor="special-instructions">Special Instructions (Optional)</Label>
+                          <Textarea
+                            id="special-instructions"
+                            placeholder="Any special requests or dietary requirements..."
+                            value={specialInstructions}
+                            onChange={(e) => setSpecialInstructions(e.target.value)}
+                            data-testid="input-special-instructions"
+                          />
+                        </div>
                       </div>
 
                       <div className="border-t pt-4">
@@ -229,7 +299,7 @@ export default function Menu() {
                           className="w-full"
                           size="lg"
                           onClick={handleCheckout}
-                          disabled={orderMutation.isPending || !roomNumber}
+                          disabled={orderMutation.isPending || (orderType === "room" ? !roomNumber : (!customerName || !customerPhone))}
                           data-testid="button-place-order"
                         >
                           <Check className="h-5 w-5 mr-2" />

@@ -33,6 +33,7 @@ import RoomCalendar from "@/pages/room-calendar";
 import FoodOrdersReport from "@/pages/food-orders-report";
 import MenuManagement from "@/pages/menu-management";
 import BookingAnalytics from "@/pages/booking-analytics";
+import QRCodes from "@/pages/qr-codes";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -79,6 +80,7 @@ function Router() {
           <Route path="/addons" component={AddOnServices} />
           <Route path="/analytics" component={Analytics} />
           <Route path="/users" component={UsersManagement} />
+          <Route path="/qr-codes" component={QRCodes} />
           <Route path="/settings" component={Settings} />
         </>
       )}
