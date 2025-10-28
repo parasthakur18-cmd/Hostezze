@@ -116,36 +116,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/public/orders", async (req, res) => {
     try {
       
-      const { roomId, items, totalAmount, specialInstructions } = req.body;
+      const { orderType, roomId, customerName, customerPhone, items, totalAmount, specialInstructions } = req.body;
       
-      if (!roomId || !items || items.length === 0) {
-        return res.status(400).json({ message: "Room number and items are required" });
+      // Validate items
+      if (!items || items.length === 0) {
+        return res.status(400).json({ message: "Items are required" });
+      }
+      
+      // Type-specific validation
+      if (orderType === "room") {
+        if (!roomId) {
+          return res.status(400).json({ message: "Room number is required" });
+        }
+      } else if (orderType === "restaurant") {
+        if (!customerName || !customerPhone) {
+          return res.status(400).json({ message: "Name and phone number are required" });
+        }
+      } else {
+        return res.status(400).json({ message: "Invalid order type" });
       }
 
-      // Look up room by room number (guest enters "101", we need the actual room ID)
-      const roomNumber = String(roomId);
-      const rooms = await storage.getAllRooms();
-      const room = rooms.find(r => r.roomNumber === roomNumber);
-      
-      if (!room) {
-        return res.status(400).json({ message: `Room ${roomNumber} not found. Please check your room number.` });
-      }
-
-      // Find the checked-in booking for this room to link the order
-      const bookings = await storage.getAllBookings();
-      const activeBooking = bookings.find(b => b.roomId === room.id && b.status === "checked-in");
-
-      const orderData = {
-        propertyId: room.propertyId,
-        roomId: room.id,
-        bookingId: activeBooking?.id || null, // Link to booking if guest is checked in
-        guestId: activeBooking?.guestId || null, // Also include guest ID for tracking
+      let orderData: any = {
+        orderType: orderType || "restaurant",
+        orderSource: "guest",
         items,
         totalAmount,
         specialInstructions: specialInstructions || null,
         status: "pending",
-        orderSource: "guest",
       };
+      
+      // Handle room orders
+      if (orderType === "room") {
+        // Look up room by room number (guest enters "101", we need the actual room ID)
+        const roomNumber = String(roomId);
+        const rooms = await storage.getAllRooms();
+        const room = rooms.find(r => r.roomNumber === roomNumber);
+        
+        if (!room) {
+          return res.status(400).json({ message: `Room ${roomNumber} not found. Please check your room number.` });
+        }
+
+        // Find the checked-in booking for this room to link the order
+        const bookings = await storage.getAllBookings();
+        const activeBooking = bookings.find(b => b.roomId === room.id && b.status === "checked-in");
+
+        orderData.propertyId = room.propertyId;
+        orderData.roomId = room.id;
+        orderData.bookingId = activeBooking?.id || null; // Link to booking if guest is checked in
+        orderData.guestId = activeBooking?.guestId || null; // Also include guest ID for tracking
+      } else {
+        // Handle restaurant orders
+        orderData.customerName = customerName;
+        orderData.customerPhone = customerPhone;
+        // Restaurant orders aren't linked to a specific room or property
+        // They are walk-in customers
+      }
 
       const order = await storage.createOrder(orderData);
       res.status(201).json(order);

@@ -182,7 +182,7 @@ export type MenuItem = typeof menuItems.$inferSelect;
 // Orders table
 export const orders = pgTable("orders", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  propertyId: integer("property_id").notNull().references(() => properties.id),
+  propertyId: integer("property_id").references(() => properties.id), // Nullable for restaurant/walk-in orders
   roomId: integer("room_id").references(() => rooms.id),
   bookingId: integer("booking_id").references(() => bookings.id),
   guestId: integer("guest_id").references(() => guests.id),
