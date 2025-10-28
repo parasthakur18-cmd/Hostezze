@@ -22,7 +22,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
-import { desc, sql, eq } from "drizzle-orm";
+import { desc, sql, eq, and } from "drizzle-orm";
 import { format } from "date-fns";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
@@ -969,26 +969,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search café orders by name/phone (for merging at checkout)
   app.get("/api/orders/search-cafe", isAuthenticated, async (req, res) => {
     try {
-      const { customerName, customerPhone } = req.query;
+      const customerName = req.query.customerName as string | undefined;
+      const customerPhone = req.query.customerPhone as string | undefined;
       
       if (!customerName && !customerPhone) {
         return res.status(400).json({ message: "Either customerName or customerPhone is required" });
       }
 
-      // Search for restaurant orders that haven't been merged to a booking yet
-      const allOrders = await storage.getAllOrders();
-      const cafeOrders = allOrders.filter(order => {
-        // Must be restaurant type and not already linked to a booking
-        if (order.orderType !== "restaurant" || order.bookingId) {
-          return false;
-        }
-        
-        // Match by name or phone
+      // Query database for restaurant orders without bookingId using proper drizzle methods
+      const result = await db
+        .select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.orderType, "restaurant"),
+            sql`${orders.bookingId} IS NULL`
+          )
+        );
+      
+      // Filter by name or phone in application layer
+      const cafeOrders = result.filter(order => {
         const nameMatch = customerName ? 
-          order.customerName?.toLowerCase().includes((customerName as string).toLowerCase()) : 
+          order.customerName?.toLowerCase().includes(customerName.toLowerCase()) : 
           false;
         const phoneMatch = customerPhone ? 
-          order.customerPhone?.includes(customerPhone as string) : 
+          order.customerPhone?.includes(customerPhone) : 
           false;
         
         return customerName && customerPhone ? (nameMatch && phoneMatch) : (nameMatch || phoneMatch);
@@ -996,6 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(cafeOrders);
     } catch (error: any) {
+      console.error("Error searching café orders:", error);
       res.status(500).json({ message: error.message });
     }
   });

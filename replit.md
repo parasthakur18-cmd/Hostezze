@@ -23,6 +23,7 @@ The frontend uses **React 18** with **TypeScript** (Vite), **Wouter** for routin
 -   **Room-Specific QR Codes**: Generate unique QR codes per property and room for contactless room service ordering. Guests scan and room number is auto-filled.
 -   **Public Menu Ordering**: Public menu page supports both room service (with auto-filled room from QR) and walk-in café orders without authentication.
 -   **In-House Guest Café Orders**: Staff can mark café customers as "In-House Guest" to automatically link orders to their room bill via booking ID.
+-   **Café Bill Merge System**: Guests place café orders with name/phone; at checkout, staff search and merge these bills to room bookings. Supports walk-in customers who later check in.
 -   **Auto-Merge Order Billing**: Both room service and in-house café orders automatically merge into the guest's final checkout bill.
 -   **Detailed Food Bill Breakdown**: Checkout dialog shows item-wise food order breakdown with quantities and prices.
 -   **Guest Name Billing Display**: Billing section displays guest names instead of invoice numbers for better readability.

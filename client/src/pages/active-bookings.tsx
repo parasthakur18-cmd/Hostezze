@@ -96,9 +96,19 @@ export default function ActiveBookings() {
   });
 
   // Query for searching café orders
-  const { data: cafeOrders, refetch: searchCafeOrders, isLoading: isSearchingCafe } = useQuery({
-    queryKey: ["/api/orders/search-cafe", cafeSearchName, cafeSearchPhone],
-    enabled: false, // Manual search trigger
+  const { data: cafeOrders, refetch: searchCafeOrders, isLoading: isSearchingCafe } = useQuery<any[]>({
+    queryKey: ["/api/orders/search-cafe", { customerName: cafeSearchName, customerPhone: cafeSearchPhone }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (cafeSearchName) params.append("customerName", cafeSearchName);
+      if (cafeSearchPhone) params.append("customerPhone", cafeSearchPhone);
+      const response = await fetch(`/api/orders/search-cafe?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to search café orders");
+      return response.json();
+    },
+    enabled: false,
   });
 
   // Filter bookings based on search query
@@ -665,18 +675,126 @@ export default function ActiveBookings() {
               )}
 
               <div className="space-y-4 pt-4 border-t">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <h3 className="font-semibold text-sm">Additional Charges</h3>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={addManualCharge}
-                    data-testid="button-add-charge"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Charge
-                  </Button>
+                  <div className="flex gap-2">
+                    <Sheet open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
+                      <SheetTrigger asChild>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          data-testid="button-merge-cafe-bill"
+                        >
+                          <Coffee className="h-4 w-4 mr-1" />
+                          Merge Café Bill
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent className="overflow-y-auto">
+                        <SheetHeader>
+                          <SheetTitle>Merge Café Orders</SheetTitle>
+                          <SheetDescription>
+                            Search for café orders by guest name or phone and add them to this bill
+                          </SheetDescription>
+                        </SheetHeader>
+                        <div className="mt-6 space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="cafe-search-name">Customer Name</Label>
+                            <Input
+                              id="cafe-search-name"
+                              placeholder="Enter customer name"
+                              value={cafeSearchName}
+                              onChange={(e) => setCafeSearchName(e.target.value)}
+                              data-testid="input-cafe-search-name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="cafe-search-phone">Phone Number</Label>
+                            <Input
+                              id="cafe-search-phone"
+                              placeholder="Enter phone number"
+                              value={cafeSearchPhone}
+                              onChange={(e) => setCafeSearchPhone(e.target.value)}
+                              data-testid="input-cafe-search-phone"
+                            />
+                          </div>
+                          <Button
+                            className="w-full"
+                            onClick={handleSearchCafeOrders}
+                            disabled={isSearchingCafe}
+                            data-testid="button-search-cafe-orders"
+                          >
+                            <Search className="h-4 w-4 mr-2" />
+                            {isSearchingCafe ? "Searching..." : "Search Orders"}
+                          </Button>
+
+                          {cafeOrders && cafeOrders.length > 0 && (
+                            <div className="space-y-3 pt-4 border-t">
+                              <p className="text-sm font-medium">Found {cafeOrders.length} café order(s)</p>
+                              {cafeOrders.map((order: any) => (
+                                <Card
+                                  key={order.id}
+                                  className={`p-3 cursor-pointer ${selectedCafeOrders.includes(order.id) ? 'border-primary' : ''}`}
+                                  onClick={() => {
+                                    setSelectedCafeOrders(prev =>
+                                      prev.includes(order.id)
+                                        ? prev.filter(id => id !== order.id)
+                                        : [...prev, order.id]
+                                    );
+                                  }}
+                                  data-testid={`card-cafe-order-${order.id}`}
+                                >
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <p className="font-medium">{order.customerName}</p>
+                                        <p className="text-sm text-muted-foreground">{order.customerPhone}</p>
+                                      </div>
+                                      <Badge variant="secondary">₹{order.totalAmount}</Badge>
+                                    </div>
+                                    {Array.isArray(order.items) && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {order.items.map((item: any) => `${item.quantity}x ${item.name}`).join(", ")}
+                                      </div>
+                                    )}
+                                    <Checkbox
+                                      checked={selectedCafeOrders.includes(order.id)}
+                                      className="mt-2"
+                                      data-testid={`checkbox-cafe-order-${order.id}`}
+                                    />
+                                  </div>
+                                </Card>
+                              ))}
+                              <Button
+                                className="w-full"
+                                onClick={handleMergeCafeOrders}
+                                disabled={selectedCafeOrders.length === 0 || mergeCafeOrdersMutation.isPending}
+                                data-testid="button-confirm-merge-cafe"
+                              >
+                                {mergeCafeOrdersMutation.isPending ? "Merging..." : `Merge ${selectedCafeOrders.length} Order(s)`}
+                              </Button>
+                            </div>
+                          )}
+
+                          {cafeOrders && cafeOrders.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              No café orders found
+                            </p>
+                          )}
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={addManualCharge}
+                      data-testid="button-add-charge"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Charge
+                    </Button>
+                  </div>
                 </div>
                 
                 {checkoutDialog.booking && (() => {
