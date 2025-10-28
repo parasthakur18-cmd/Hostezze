@@ -19,7 +19,13 @@ The frontend uses **React 18** with **TypeScript** (Vite), **Wouter** for routin
 -   **Booking & Guest Management**: Comprehensive booking coordination, guest tracking, and advanced pricing options with booking source and meal plan tracking. Includes filter tabs (All, Active, Completed, Cancelled) with real-time badge counts.
 -   **Booking Deletion**: Safe deletion with protection - prevents deletion of bookings with bills or food orders to maintain financial integrity.
 -   **Payment & Communication System**: Tracks advance payment status, sends messages to guests via WhatsApp/SMS using templates, and logs all communications.
--   **Restaurant & Order Management**: Integrates restaurant operations, order tracking, menu item management, and food orders reporting.
+-   **Restaurant & Order Management**: Integrates restaurant operations, order tracking, menu item management, and food orders reporting with status-based kitchen views (Active/Pending/Completed tabs).
+-   **Room-Specific QR Codes**: Generate unique QR codes per property and room for contactless room service ordering. Guests scan and room number is auto-filled.
+-   **Public Menu Ordering**: Public menu page supports both room service (with auto-filled room from QR) and walk-in café orders without authentication.
+-   **In-House Guest Café Orders**: Staff can mark café customers as "In-House Guest" to automatically link orders to their room bill via booking ID.
+-   **Auto-Merge Order Billing**: Both room service and in-house café orders automatically merge into the guest's final checkout bill.
+-   **Detailed Food Bill Breakdown**: Checkout dialog shows item-wise food order breakdown with quantities and prices.
+-   **Guest Name Billing Display**: Billing section displays guest names instead of invoice numbers for better readability.
 -   **Financial Tracking**: Manages property lease agreements, payments, expenses with auto-categorization, and generates P&L reports.
 -   **Active Bookings Dashboard**: Real-time monitoring of checked-in guests with quick checkout.
 -   **Room Availability Calendar**: Visual calendar for room availability and occupancy.

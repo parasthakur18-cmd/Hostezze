@@ -160,7 +160,6 @@ export default function QuickOrder() {
     }
 
     const orderData: any = {
-      propertyId: 1,
       items: cart.map((item) => ({
         id: item.id,
         name: item.name,
@@ -175,9 +174,10 @@ export default function QuickOrder() {
 
     if (orderType === "room") {
       orderData.roomId = parseInt(selectedRoom);
-      // Also include guest name, phone, and bookingId for room orders
+      // Also include guest name, phone, bookingId, and propertyId for room orders
       const roomGuest = roomsWithGuests?.find(r => r.roomId === parseInt(selectedRoom));
       if (roomGuest) {
+        orderData.propertyId = roomGuest.propertyId; // Get property from room
         orderData.bookingId = roomGuest.bookingId; // Link order to booking for checkout
         orderData.customerName = roomGuest.guestName;
         orderData.customerPhone = roomGuest.guestPhone || "";
@@ -188,12 +188,14 @@ export default function QuickOrder() {
         orderData.roomId = parseInt(selectedRoom);
         const roomGuest = roomsWithGuests?.find(r => r.roomId === parseInt(selectedRoom));
         if (roomGuest) {
+          orderData.propertyId = roomGuest.propertyId; // Get property from room
           orderData.bookingId = roomGuest.bookingId; // Link to booking for auto-merge to bill
           orderData.customerName = roomGuest.guestName;
           orderData.customerPhone = roomGuest.guestPhone || "";
         }
       } else {
-        // Walk-in customer
+        // Walk-in customer - no property association
+        orderData.propertyId = null;
         orderData.customerName = customerName;
         orderData.customerPhone = customerPhone;
       }
