@@ -967,10 +967,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { orderIds, bookingId } = req.body;
       
-      console.log("=== MERGE DEBUG ===");
-      console.log("Raw orderIds:", orderIds, "type:", typeof orderIds, "isArray:", Array.isArray(orderIds));
-      console.log("Raw bookingId:", bookingId, "type:", typeof bookingId);
-      
       if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
         return res.status(400).json({ message: "orderIds array is required" });
       }
@@ -981,7 +977,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify booking exists
       const booking = await storage.getBooking(bookingId);
-      console.log("Booking found:", JSON.stringify(booking, null, 2));
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
@@ -989,47 +984,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update each order - ONLY include non-null values to avoid NaN conversion
       const updatedOrders = [];
       for (const orderId of orderIds) {
-        console.log(`Processing orderId: ${orderId}, type: ${typeof orderId}, parsed: ${parseInt(orderId)}`);
-        
         const orderData: any = {
-          bookingId: parseInt(String(bookingId), 10),
-          guestId: parseInt(String(booking.guestId), 10),
-          propertyId: parseInt(String(booking.propertyId), 10),
+          bookingId: bookingId,
+          guestId: booking.guestId,
+          propertyId: booking.propertyId,
         };
         
         // Only add roomId if it's not null
         if (booking.roomId !== null && booking.roomId !== undefined) {
-          orderData.roomId = parseInt(String(booking.roomId), 10);
+          orderData.roomId = booking.roomId;
         }
         
-        console.log("Order data being sent:", JSON.stringify(orderData, null, 2));
-        console.log("Data value checks:", {
-          bookingId: orderData.bookingId,
-          bookingIdIsNaN: isNaN(orderData.bookingId),
-          guestId: orderData.guestId,
-          guestIdIsNaN: isNaN(orderData.guestId),
-          propertyId: orderData.propertyId,
-          propertyIdIsNaN: isNaN(orderData.propertyId),
-          roomId: orderData.roomId,
-          roomIdIsNaN: orderData.roomId ? isNaN(orderData.roomId) : "not set"
-        });
-        
-        const parsedOrderId = parseInt(String(orderId), 10);
-        console.log(`Calling storage.updateOrder(${parsedOrderId}, ...)`);
-        const updated = await storage.updateOrder(parsedOrderId, orderData);
-        console.log("Update successful:", updated);
+        const updated = await storage.updateOrder(orderId, orderData);
         updatedOrders.push(updated);
       }
 
-      console.log("=== MERGE SUCCESS ===");
       res.json({ 
         message: "Orders merged successfully",
         mergedOrders: updatedOrders
       });
     } catch (error: any) {
-      console.error("=== MERGE ERROR ===");
-      console.error("Error:", error);
-      console.error("Stack:", error.stack);
+      console.error("Error merging orders:", error);
       res.status(500).json({ message: error.message });
     }
   });

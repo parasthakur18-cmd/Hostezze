@@ -162,15 +162,12 @@ export default function ActiveBookings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings/active"] });
       queryClient.invalidateQueries({ queryKey: ["/api/orders/unmerged-cafe"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
       toast({
         title: "Order Merged",
         description: "Café order has been added to the bill",
       });
       setMergeDialogOpen(false);
-      setCheckoutDialog({ open: false, booking: null });
-      // Redirect to bills page
-      window.location.href = "/bills";
     },
     onError: (error: any) => {
       toast({

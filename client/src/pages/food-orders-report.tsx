@@ -98,7 +98,7 @@ export default function FoodOrdersReport() {
         title: "Order merged successfully",
         description: "The café order has been added to the guest bill",
       });
-      navigate("/bills");
+      navigate("/active-bookings");
     },
     onError: (error: any) => {
       toast({
