@@ -895,10 +895,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Menu Items
-  app.get("/api/menu-items", isAuthenticated, async (req, res) => {
+  app.get("/api/menu-items", isAuthenticated, async (req: any, res) => {
     try {
-      const items = await storage.getAllMenuItems();
-      res.json(items);
+      // Get current user to check role and property assignment
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      
+      // Security: If user not found in storage (deleted/stale session), deny access
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found. Please log in again." });
+      }
+      
+      // If user is a manager or kitchen, filter by assigned property
+      if ((currentUser.role === "manager" || currentUser.role === "kitchen") && currentUser.assignedPropertyId) {
+        const items = await storage.getMenuItemsByProperty(currentUser.assignedPropertyId);
+        res.json(items);
+      } else if ((currentUser.role === "manager" || currentUser.role === "kitchen") && !currentUser.assignedPropertyId) {
+        // Manager/Kitchen without assigned property sees no menu items
+        res.json([]);
+      } else {
+        // Admin and staff see all menu items
+        const items = await storage.getAllMenuItems();
+        res.json(items);
+      }
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -916,9 +934,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/menu-items", isAuthenticated, async (req, res) => {
+  app.post("/api/menu-items", isAuthenticated, async (req: any, res) => {
     try {
+      // Get current user to check role and property assignment
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      
+      // Security: If user not found in storage (deleted/stale session), deny access
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found. Please log in again." });
+      }
+      
       const data = insertMenuItemSchema.parse(req.body);
+      
+      // Security: If user is manager or kitchen, enforce they can only create items for their assigned property
+      if (currentUser.role === "manager" || currentUser.role === "kitchen") {
+        if (!currentUser.assignedPropertyId) {
+          return res.status(403).json({ message: "You must be assigned to a property to create menu items." });
+        }
+        
+        // Override propertyId to ensure they can only create for their assigned property
+        data.propertyId = currentUser.assignedPropertyId;
+      }
+      
       const item = await storage.createMenuItem(data);
       res.status(201).json(item);
     } catch (error: any) {
@@ -929,8 +966,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/menu-items/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/menu-items/:id", isAuthenticated, async (req: any, res) => {
     try {
+      // Get current user to check role and property assignment
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      
+      // Security: If user not found in storage (deleted/stale session), deny access
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found. Please log in again." });
+      }
+      
+      // Security: If user is manager or kitchen, verify the menu item belongs to their property
+      if (currentUser.role === "manager" || currentUser.role === "kitchen") {
+        const existingItem = await storage.getMenuItem(parseInt(req.params.id));
+        
+        if (!existingItem) {
+          return res.status(404).json({ message: "Menu item not found" });
+        }
+        
+        if (existingItem.propertyId !== currentUser.assignedPropertyId) {
+          return res.status(403).json({ message: "You can only modify menu items from your assigned property." });
+        }
+        
+        // Prevent changing propertyId
+        if (req.body.propertyId && req.body.propertyId !== currentUser.assignedPropertyId) {
+          return res.status(403).json({ message: "You cannot change the property of a menu item." });
+        }
+      }
+      
       const item = await storage.updateMenuItem(parseInt(req.params.id), req.body);
       res.json(item);
     } catch (error: any) {
@@ -938,8 +1001,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/menu-items/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/menu-items/:id", isAuthenticated, async (req: any, res) => {
     try {
+      // Get current user to check role and property assignment
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      
+      // Security: If user not found in storage (deleted/stale session), deny access
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found. Please log in again." });
+      }
+      
+      // Security: If user is manager or kitchen, verify the menu item belongs to their property
+      if (currentUser.role === "manager" || currentUser.role === "kitchen") {
+        const existingItem = await storage.getMenuItem(parseInt(req.params.id));
+        
+        if (!existingItem) {
+          return res.status(404).json({ message: "Menu item not found" });
+        }
+        
+        if (existingItem.propertyId !== currentUser.assignedPropertyId) {
+          return res.status(403).json({ message: "You can only delete menu items from your assigned property." });
+        }
+      }
+      
       await storage.deleteMenuItem(parseInt(req.params.id));
       res.status(204).send();
     } catch (error: any) {
