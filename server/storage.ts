@@ -529,11 +529,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order> {
+    console.log("=== STORAGE.updateOrder called ===");
+    console.log("ID:", id, "type:", typeof id);
+    console.log("Order update data:", JSON.stringify(order, null, 2));
+    console.log("Data types:", {
+      bookingId: `${order.bookingId} (${typeof order.bookingId})`,
+      guestId: `${order.guestId} (${typeof order.guestId})`,
+      propertyId: `${order.propertyId} (${typeof order.propertyId})`,
+      roomId: `${order.roomId} (${typeof order.roomId})`,
+    });
+    
     const [updated] = await db
       .update(orders)
       .set({ ...order, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning();
+    
+    console.log("Update completed successfully");
     return updated;
   }
 
