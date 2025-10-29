@@ -72,6 +72,7 @@ const managerMenuItems = [
   { title: "Bookings", url: "/bookings", icon: Calendar },
   { title: "Active Bookings", url: "/active-bookings", icon: ClipboardCheck },
   { title: "Room Calendar", url: "/room-calendar", icon: CalendarDays },
+  { title: "Enquiries", url: "/enquiries", icon: MessageSquare },
   { title: "Restaurant", url: "/restaurant", icon: UtensilsCrossed },
   { title: "Kitchen", url: "/kitchen", icon: ChefHat },
   { title: "Quick Order", url: "/quick-order", icon: Phone },
