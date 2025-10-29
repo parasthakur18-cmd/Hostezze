@@ -223,6 +223,7 @@ export default function ActiveBookings() {
       paymentMethod,
       discountType: discountType === "none" ? undefined : discountType,
       discountValue: discountType === "none" || !discountValue ? undefined : parseFloat(discountValue),
+      discountAppliesTo: discountType === "none" ? undefined : discountAppliesTo,
       includeGst,
       includeServiceCharge,
       manualCharges,
@@ -638,22 +639,37 @@ export default function ActiveBookings() {
               </div>
 
               {discountType !== "none" && (
-                <div className="space-y-2">
-                  <Label htmlFor="discount-value">
-                    Discount {discountType === "percentage" ? "Percentage" : "Amount"}
-                  </Label>
-                  <Input
-                    id="discount-value"
-                    type="number"
-                    step={discountType === "percentage" ? "0.01" : "1"}
-                    min="0"
-                    max={discountType === "percentage" ? "100" : undefined}
-                    value={discountValue}
-                    onChange={(e) => setDiscountValue(e.target.value)}
-                    placeholder={discountType === "percentage" ? "Enter percentage (e.g., 10)" : "Enter amount (e.g., 500)"}
-                    data-testid="input-discount-value"
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="discount-applies-to">Apply Discount To</Label>
+                    <Select value={discountAppliesTo} onValueChange={setDiscountAppliesTo}>
+                      <SelectTrigger id="discount-applies-to" data-testid="select-discount-applies-to">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="total">Total Bill</SelectItem>
+                        <SelectItem value="room">Room Charges Only</SelectItem>
+                        <SelectItem value="food">Food Charges Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="discount-value">
+                      Discount {discountType === "percentage" ? "Percentage" : "Amount"}
+                    </Label>
+                    <Input
+                      id="discount-value"
+                      type="number"
+                      step={discountType === "percentage" ? "0.01" : "1"}
+                      min="0"
+                      max={discountType === "percentage" ? "100" : undefined}
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      placeholder={discountType === "percentage" ? "Enter percentage (e.g., 10)" : "Enter amount (e.g., 500)"}
+                      data-testid="input-discount-value"
+                    />
+                  </div>
+                </>
               )}
 
               <div className="space-y-4 pt-4 border-t">

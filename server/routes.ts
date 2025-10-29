@@ -850,7 +850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Checkout endpoint
   app.post("/api/bookings/checkout", isAuthenticated, async (req, res) => {
     try {
-      const { bookingId, paymentMethod, discountType, discountValue, includeGst = true, includeServiceCharge = true, manualCharges } = req.body;
+      const { bookingId, paymentMethod, discountType, discountValue, discountAppliesTo = "total", includeGst = true, includeServiceCharge = true, manualCharges } = req.body;
       
       // Validate input
       if (!bookingId || !paymentMethod) {
@@ -920,12 +920,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const serviceChargeAmount = includeServiceCharge ? (subtotal * serviceChargeRate) / 100 : 0;
       const totalAmountBeforeDiscount = subtotal + gstAmount + serviceChargeAmount;
 
-      // Calculate discount
+      // Calculate discount based on where it applies
       let discountAmount = 0;
+      
       if (discountType && discountValue && discountType !== "none") {
         const discount = parseFloat(discountValue);
+        let baseAmountForDiscount = totalAmountBeforeDiscount; // Default: apply to total
+        
+        // Determine base amount based on what discount applies to
+        if (discountAppliesTo === "room") {
+          baseAmountForDiscount = roomCharges;
+        } else if (discountAppliesTo === "food") {
+          baseAmountForDiscount = foodCharges;
+        }
+        
         if (discountType === "percentage") {
-          discountAmount = (totalAmountBeforeDiscount * discount) / 100;
+          discountAmount = (baseAmountForDiscount * discount) / 100;
         } else if (discountType === "fixed") {
           discountAmount = discount;
         }
