@@ -44,8 +44,8 @@ The frontend uses **React 18** with **TypeScript** (Vite), **Wouter** for routin
 -   **Authentication**: Replit Auth, OpenID Connect, Passport.js, session-based via secure HTTP-only cookies. Auto-creates users on first login as admin.
 -   **Authorization**: Role-based (admin, manager, staff, kitchen) with property-specific assignments. Managers and kitchen users have property-scoped data access.
 -   **Property Filtering**: 
-    - **Managers & Kitchen**: Only see and manage data from their assigned property (rooms, dashboard stats, menu items, bookings, active bookings, analytics, revenue)
-    - **Property Enforcement**: Cannot create/modify/delete resources outside their assigned property. All booking endpoints filtered by assigned property.
+    - **Managers & Kitchen**: Only see and manage data from their assigned property (properties list, rooms, dashboard stats, menu items, bookings, active bookings, analytics, revenue)
+    - **Property Enforcement**: Cannot create/modify/delete resources outside their assigned property. All property and booking endpoints filtered by assigned property.
     - **Security**: Returns empty array if no property assigned. Rejects stale sessions (deleted users) with 403 error
     - **Admin & Staff**: Full access to all properties (unchanged)
 -   **Data Validation**: Client-side with Zod, server-side using shared Zod schemas.

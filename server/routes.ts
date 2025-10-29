@@ -329,9 +329,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Properties
-  app.get("/api/properties", isAuthenticated, async (req, res) => {
+  app.get("/api/properties", isAuthenticated, async (req: any, res) => {
     try {
-      const properties = await storage.getAllProperties();
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      let properties = await storage.getAllProperties();
+      
+      // Apply property filtering for managers and kitchen users
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && currentUser.assignedPropertyId) {
+        properties = properties.filter(p => p.id === currentUser.assignedPropertyId);
+      }
+      
       res.json(properties);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
