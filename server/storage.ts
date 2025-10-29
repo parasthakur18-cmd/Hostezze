@@ -105,6 +105,7 @@ export interface IStorage {
 
   // Order operations
   getAllOrders(): Promise<Order[]>;
+  getOrdersByProperty(propertyId: number): Promise<Order[]>;
   getOrder(id: number): Promise<Order | undefined>;
   getOrdersByBooking(bookingId: number): Promise<Order[]>;
   createOrder(order: InsertOrder): Promise<Order>;
@@ -500,6 +501,32 @@ export class DatabaseStorage implements IStorage {
       })
       .from(orders)
       .leftJoin(rooms, eq(orders.roomId, rooms.id))
+      .orderBy(desc(orders.createdAt));
+    
+    return ordersWithRoomStatus.map(row => ({
+      ...row.order,
+      roomStatus: row.roomStatus,
+      roomNumber: row.roomNumber,
+      hasCheckedInBooking: row.hasCheckedInBooking,
+    }));
+  }
+
+  async getOrdersByProperty(propertyId: number): Promise<any[]> {
+    const ordersWithRoomStatus = await db
+      .select({
+        order: orders,
+        roomStatus: rooms.status,
+        roomNumber: rooms.roomNumber,
+        // Check if there's an active checked-in booking for this room
+        hasCheckedInBooking: sql<boolean>`EXISTS (
+          SELECT 1 FROM ${bookings} 
+          WHERE ${bookings.roomId} = ${rooms.id} 
+          AND ${bookings.status} = 'checked-in'
+        )`,
+      })
+      .from(orders)
+      .leftJoin(rooms, eq(orders.roomId, rooms.id))
+      .where(eq(orders.propertyId, propertyId))
       .orderBy(desc(orders.createdAt));
     
     return ordersWithRoomStatus.map(row => ({

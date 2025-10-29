@@ -1032,10 +1032,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Orders
-  app.get("/api/orders", isAuthenticated, async (req, res) => {
+  app.get("/api/orders", isAuthenticated, async (req: any, res) => {
     try {
-      const orders = await storage.getAllOrders();
-      res.json(orders);
+      // Get current user to check role and property assignment
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      
+      // Security: If user not found in storage (deleted/stale session), deny access
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found. Please log in again." });
+      }
+      
+      // If user is a manager or kitchen, filter orders by assigned property
+      if ((currentUser.role === "manager" || currentUser.role === "kitchen") && currentUser.assignedPropertyId) {
+        const orders = await storage.getOrdersByProperty(currentUser.assignedPropertyId);
+        res.json(orders);
+      } else if ((currentUser.role === "manager" || currentUser.role === "kitchen") && !currentUser.assignedPropertyId) {
+        // Manager/Kitchen without assigned property sees no orders
+        res.json([]);
+      } else {
+        // Admin and staff see all orders
+        const orders = await storage.getAllOrders();
+        res.json(orders);
+      }
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
