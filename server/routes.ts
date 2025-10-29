@@ -528,9 +528,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bookings
-  app.get("/api/bookings", isAuthenticated, async (req, res) => {
+  app.get("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
-      const bookings = await storage.getAllBookings();
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      let bookings = await storage.getAllBookings();
+      
+      // Apply property filtering for managers and kitchen users
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && currentUser.assignedPropertyId) {
+        const allRooms = await storage.getAllRooms();
+        bookings = bookings.filter(booking => {
+          if (!booking.roomId) return false;
+          const room = allRooms.find(r => r.id === booking.roomId);
+          return room && room.propertyId === currentUser.assignedPropertyId;
+        });
+      }
+      
       res.json(bookings);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -538,20 +556,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Active bookings MUST come before /api/bookings/:id to avoid route collision
-  app.get("/api/bookings/active", isAuthenticated, async (req, res) => {
+  app.get("/api/bookings/active", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
       // Get all checked-in bookings
       const allBookings = await storage.getAllBookings();
-      const activeBookings = allBookings.filter(b => b.status === "checked-in");
+      let activeBookings = allBookings.filter(b => b.status === "checked-in");
+      
+      // Get all related data
+      const allGuests = await storage.getAllGuests();
+      const allRooms = await storage.getAllRooms();
+      const allProperties = await storage.getAllProperties();
+      
+      // Apply property filtering for managers and kitchen users
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && currentUser.assignedPropertyId) {
+        // Filter bookings by property through room relationship
+        activeBookings = activeBookings.filter(booking => {
+          if (!booking.roomId) return false;
+          const room = allRooms.find(r => r.id === booking.roomId);
+          return room && room.propertyId === currentUser.assignedPropertyId;
+        });
+      }
       
       if (activeBookings.length === 0) {
         return res.json([]);
       }
 
-      // Get all related data
-      const allGuests = await storage.getAllGuests();
-      const allRooms = await storage.getAllRooms();
-      const allProperties = await storage.getAllProperties();
       const allOrders = await db.select().from(orders);
       const allExtras = await db.select().from(extraServices);
 
@@ -625,12 +661,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bookings with details for analytics
-  app.get("/api/bookings/with-details", isAuthenticated, async (req, res) => {
+  app.get("/api/bookings/with-details", isAuthenticated, async (req: any, res) => {
     try {
-      const allBookings = await storage.getAllBookings();
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      let allBookings = await storage.getAllBookings();
       const allGuests = await storage.getAllGuests();
       const allRooms = await storage.getAllRooms();
       const allProperties = await storage.getAllProperties();
+
+      // Apply property filtering for managers and kitchen users
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && currentUser.assignedPropertyId) {
+        allBookings = allBookings.filter(booking => {
+          if (!booking.roomId) return false;
+          const room = allRooms.find(r => r.id === booking.roomId);
+          return room && room.propertyId === currentUser.assignedPropertyId;
+        });
+      }
 
       const enrichedBookings = allBookings.map(booking => {
         const guest = allGuests.find(g => g.id === booking.guestId);
