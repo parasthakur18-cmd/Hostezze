@@ -966,18 +966,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Search café orders by name/phone (for merging at checkout)
-  app.get("/api/orders/search-cafe", isAuthenticated, async (req, res) => {
+  // Get all unmerged café orders (for merging at checkout)
+  app.get("/api/orders/unmerged-cafe", isAuthenticated, async (req, res) => {
     try {
-      const customerName = req.query.customerName as string | undefined;
-      const customerPhone = req.query.customerPhone as string | undefined;
-      
-      if (!customerName && !customerPhone) {
-        return res.status(400).json({ message: "Either customerName or customerPhone is required" });
-      }
-
-      // Query database for restaurant orders without bookingId using proper drizzle methods
-      const result = await db
+      // Query database for all restaurant orders without bookingId
+      const cafeOrders = await db
         .select()
         .from(orders)
         .where(
@@ -985,23 +978,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             eq(orders.orderType, "restaurant"),
             isNull(orders.bookingId)
           )
-        );
-      
-      // Filter by name or phone in application layer
-      const cafeOrders = result.filter(order => {
-        const nameMatch = customerName ? 
-          order.customerName?.toLowerCase().includes(customerName.toLowerCase()) : 
-          false;
-        const phoneMatch = customerPhone ? 
-          order.customerPhone?.includes(customerPhone) : 
-          false;
-        
-        return customerName && customerPhone ? (nameMatch && phoneMatch) : (nameMatch || phoneMatch);
-      });
+        )
+        .orderBy(desc(orders.createdAt));
 
       res.json(cafeOrders);
     } catch (error: any) {
-      console.error("Error searching café orders:", error);
+      console.error("Error fetching unmerged café orders:", error);
       res.status(500).json({ message: error.message });
     }
   });

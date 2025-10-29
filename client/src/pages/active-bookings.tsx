@@ -86,29 +86,17 @@ export default function ActiveBookings() {
     { name: "", amount: "" }
   ]);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
-  const [cafeSearchName, setCafeSearchName] = useState("");
-  const [cafeSearchPhone, setCafeSearchPhone] = useState("");
-  const [selectedCafeOrders, setSelectedCafeOrders] = useState<number[]>([]);
 
   const { data: activeBookings, isLoading } = useQuery<ActiveBooking[]>({
     queryKey: ["/api/bookings/active"],
     refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 
-  // Query for searching café orders
-  const { data: cafeOrders, refetch: searchCafeOrders, isLoading: isSearchingCafe } = useQuery<any[]>({
-    queryKey: ["/api/orders/search-cafe", { customerName: cafeSearchName, customerPhone: cafeSearchPhone }],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (cafeSearchName) params.append("customerName", cafeSearchName);
-      if (cafeSearchPhone) params.append("customerPhone", cafeSearchPhone);
-      const response = await fetch(`/api/orders/search-cafe?${params.toString()}`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to search café orders");
-      return response.json();
-    },
-    enabled: false,
+  // Query for all unmerged café orders
+  const { data: cafeOrders, isLoading: isLoadingCafeOrders, refetch: refetchCafeOrders } = useQuery<any[]>({
+    queryKey: ["/api/orders/unmerged-cafe"],
+    enabled: mergeDialogOpen,
+    refetchOnWindowFocus: false,
   });
 
   // Filter bookings based on search query
@@ -173,48 +161,30 @@ export default function ActiveBookings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings/active"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders/unmerged-cafe"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills"] });
       toast({
-        title: "Orders Merged",
-        description: "Café orders have been added to the bill",
+        title: "Order Merged",
+        description: "Café order has been added to the bill",
       });
       setMergeDialogOpen(false);
-      setSelectedCafeOrders([]);
-      setCafeSearchName("");
-      setCafeSearchPhone("");
+      setCheckoutDialog({ open: false, booking: null });
+      // Redirect to bills page
+      window.location.href = "/bills";
     },
     onError: (error: any) => {
       toast({
         title: "Merge Failed",
-        description: error.message || "Failed to merge café orders",
+        description: error.message || "Failed to merge café order",
         variant: "destructive",
       });
     },
   });
 
-  const handleSearchCafeOrders = () => {
-    if (!cafeSearchName && !cafeSearchPhone) {
-      toast({
-        title: "Search Required",
-        description: "Please enter customer name or phone number",
-        variant: "destructive",
-      });
-      return;
-    }
-    searchCafeOrders();
-  };
-
-  const handleMergeCafeOrders = () => {
+  const handleMergeSingleOrder = (orderId: number) => {
     if (!checkoutDialog.booking) return;
-    if (selectedCafeOrders.length === 0) {
-      toast({
-        title: "No Orders Selected",
-        description: "Please select at least one café order to merge",
-        variant: "destructive",
-      });
-      return;
-    }
     mergeCafeOrdersMutation.mutate({
-      orderIds: selectedCafeOrders,
+      orderIds: [orderId],
       bookingId: checkoutDialog.booking.id,
     });
   };
@@ -678,7 +648,12 @@ export default function ActiveBookings() {
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-semibold text-sm">Additional Charges</h3>
                   <div className="flex gap-2">
-                    <Sheet open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
+                    <Sheet open={mergeDialogOpen} onOpenChange={(open) => {
+                      setMergeDialogOpen(open);
+                      if (open) {
+                        refetchCafeOrders();
+                      }
+                    }}>
                       <SheetTrigger asChild>
                         <Button
                           type="button"
@@ -694,91 +669,63 @@ export default function ActiveBookings() {
                         <SheetHeader>
                           <SheetTitle>Merge Café Orders</SheetTitle>
                           <SheetDescription>
-                            Search for café orders by guest name or phone and add them to this bill
+                            Browse all unmerged café orders and add them to this bill
                           </SheetDescription>
                         </SheetHeader>
                         <div className="mt-6 space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="cafe-search-name">Customer Name</Label>
-                            <Input
-                              id="cafe-search-name"
-                              placeholder="Enter customer name"
-                              value={cafeSearchName}
-                              onChange={(e) => setCafeSearchName(e.target.value)}
-                              data-testid="input-cafe-search-name"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="cafe-search-phone">Phone Number</Label>
-                            <Input
-                              id="cafe-search-phone"
-                              placeholder="Enter phone number"
-                              value={cafeSearchPhone}
-                              onChange={(e) => setCafeSearchPhone(e.target.value)}
-                              data-testid="input-cafe-search-phone"
-                            />
-                          </div>
-                          <Button
-                            className="w-full"
-                            onClick={handleSearchCafeOrders}
-                            disabled={isSearchingCafe}
-                            data-testid="button-search-cafe-orders"
-                          >
-                            <Search className="h-4 w-4 mr-2" />
-                            {isSearchingCafe ? "Searching..." : "Search Orders"}
-                          </Button>
+                          {isLoadingCafeOrders && (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              Loading café orders...
+                            </p>
+                          )}
 
                           {cafeOrders && cafeOrders.length > 0 && (
-                            <div className="space-y-3 pt-4 border-t">
-                              <p className="text-sm font-medium">Found {cafeOrders.length} café order(s)</p>
+                            <div className="space-y-3">
+                              <p className="text-sm font-medium">{cafeOrders.length} unmerged café order(s)</p>
                               {cafeOrders.map((order: any) => (
                                 <Card
                                   key={order.id}
-                                  className={`p-3 cursor-pointer ${selectedCafeOrders.includes(order.id) ? 'border-primary' : ''}`}
-                                  onClick={() => {
-                                    setSelectedCafeOrders(prev =>
-                                      prev.includes(order.id)
-                                        ? prev.filter(id => id !== order.id)
-                                        : [...prev, order.id]
-                                    );
-                                  }}
+                                  className="p-4"
                                   data-testid={`card-cafe-order-${order.id}`}
                                 >
-                                  <div className="space-y-2">
-                                    <div className="flex justify-between items-start">
-                                      <div>
-                                        <p className="font-medium">{order.customerName}</p>
-                                        <p className="text-sm text-muted-foreground">{order.customerPhone}</p>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between items-start gap-3">
+                                      <div className="flex-1">
+                                        <p className="font-medium">{order.customerName || "Walk-in Customer"}</p>
+                                        {order.customerPhone && (
+                                          <p className="text-sm text-muted-foreground">{order.customerPhone}</p>
+                                        )}
+                                        <div className="flex gap-2 mt-1">
+                                          <Badge variant={order.status === "delivered" ? "default" : order.status === "pending" ? "secondary" : "outline"}>
+                                            {order.status}
+                                          </Badge>
+                                          <Badge variant="secondary">₹{order.totalAmount}</Badge>
+                                        </div>
                                       </div>
-                                      <Badge variant="secondary">₹{order.totalAmount}</Badge>
                                     </div>
                                     {Array.isArray(order.items) && (
-                                      <div className="text-xs text-muted-foreground">
+                                      <div className="text-sm text-muted-foreground">
                                         {order.items.map((item: any) => `${item.quantity}x ${item.name}`).join(", ")}
                                       </div>
                                     )}
-                                    <Checkbox
-                                      checked={selectedCafeOrders.includes(order.id)}
-                                      className="mt-2"
-                                      data-testid={`checkbox-cafe-order-${order.id}`}
-                                    />
+                                    <Button
+                                      size="sm"
+                                      className="w-full"
+                                      onClick={() => handleMergeSingleOrder(order.id)}
+                                      disabled={mergeCafeOrdersMutation.isPending}
+                                      data-testid={`button-merge-order-${order.id}`}
+                                    >
+                                      {mergeCafeOrdersMutation.isPending ? "Merging..." : "Merge to Bill"}
+                                    </Button>
                                   </div>
                                 </Card>
                               ))}
-                              <Button
-                                className="w-full"
-                                onClick={handleMergeCafeOrders}
-                                disabled={selectedCafeOrders.length === 0 || mergeCafeOrdersMutation.isPending}
-                                data-testid="button-confirm-merge-cafe"
-                              >
-                                {mergeCafeOrdersMutation.isPending ? "Merging..." : `Merge ${selectedCafeOrders.length} Order(s)`}
-                              </Button>
                             </div>
                           )}
 
-                          {cafeOrders && cafeOrders.length === 0 && (
+                          {cafeOrders && cafeOrders.length === 0 && !isLoadingCafeOrders && (
                             <p className="text-sm text-muted-foreground text-center py-4">
-                              No café orders found
+                              No unmerged café orders found
                             </p>
                           )}
                         </div>
