@@ -939,34 +939,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/orders/:id", isAuthenticated, async (req, res) => {
-    try {
-      const order = await storage.updateOrder(parseInt(req.params.id), req.body);
-      res.json(order);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.patch("/api/orders/:id/status", isAuthenticated, async (req, res) => {
-    try {
-      const { status } = req.body;
-      const order = await storage.updateOrderStatus(parseInt(req.params.id), status);
-      res.json(order);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.delete("/api/orders/:id", isAuthenticated, async (req, res) => {
-    try {
-      await storage.deleteOrder(parseInt(req.params.id));
-      res.status(204).send();
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // Get all unmerged café orders (for merging at checkout)
   app.get("/api/orders/unmerged-cafe", isAuthenticated, async (req, res) => {
     try {
@@ -990,7 +962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Merge café orders to a booking - EXACT SAME PATTERN AS EXTRA SERVICES
+  // Merge café orders to a booking - MUST BE BEFORE /api/orders/:id to avoid route collision
   app.patch("/api/orders/merge-to-booking", isAuthenticated, async (req, res) => {
     try {
       const { orderIds, bookingId } = req.body;
@@ -1058,6 +1030,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("=== MERGE ERROR ===");
       console.error("Error:", error);
       console.error("Stack:", error.stack);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/orders/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const { status } = req.body;
+      const order = await storage.updateOrderStatus(parseInt(req.params.id), status);
+      res.json(order);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/orders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const order = await storage.updateOrder(parseInt(req.params.id), req.body);
+      res.json(order);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/orders/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteOrder(parseInt(req.params.id));
+      res.status(204).send();
+    } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
