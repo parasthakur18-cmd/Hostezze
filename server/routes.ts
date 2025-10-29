@@ -969,6 +969,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all unmerged café orders (for merging at checkout)
   app.get("/api/orders/unmerged-cafe", isAuthenticated, async (req, res) => {
     try {
+      console.log("Fetching unmerged café orders...");
+      
       // Direct database query for restaurant orders without bookingId
       const cafeOrders = await db
         .select()
@@ -976,12 +978,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(orders.orderType, "restaurant"))
         .orderBy(desc(orders.createdAt));
       
+      console.log(`Found ${cafeOrders.length} restaurant orders`);
+      
       // Filter in JavaScript for null bookingId
       const unmergedOrders = cafeOrders.filter(order => order.bookingId === null);
 
+      console.log(`Found ${unmergedOrders.length} unmerged café orders`);
       res.json(unmergedOrders);
     } catch (error: any) {
-      console.error("Error fetching unmerged café orders:", error);
+      console.error("Error fetching unmerged café orders (FULL):", error);
+      console.error("Error stack:", error.stack);
       res.status(500).json({ message: error.message });
     }
   });
