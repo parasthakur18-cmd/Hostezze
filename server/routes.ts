@@ -970,19 +970,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all unmerged café orders (for merging at checkout)
   app.get("/api/orders/unmerged-cafe", isAuthenticated, async (req, res) => {
     try {
-      // Use raw SQL to avoid Drizzle ORM issues
-      const sqlClient = neon(process.env.DATABASE_URL!);
-      const result = await sqlClient`
+      // Use raw SQL query with db.$queryRaw
+      const result: any[] = await db.execute(sql`
         SELECT * FROM orders 
         WHERE order_type = 'restaurant' 
         AND booking_id IS NULL
         ORDER BY created_at DESC
-      `;
+      `);
       
       console.log(`Found ${result.length} unmerged café orders`);
       res.json(result);
     } catch (error: any) {
       console.error("Error fetching unmerged café orders:", error);
+      console.error("Full error:", JSON.stringify(error, null, 2));
       res.status(500).json({ message: error.message });
     }
   });
