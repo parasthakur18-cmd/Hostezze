@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { createAuthkeyService } from "./authkey-service";
+import { neon } from "@neondatabase/serverless";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -969,25 +970,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all unmerged café orders (for merging at checkout)
   app.get("/api/orders/unmerged-cafe", isAuthenticated, async (req, res) => {
     try {
-      console.log("Fetching unmerged café orders...");
+      // Use raw SQL to avoid Drizzle ORM issues
+      const sqlClient = neon(process.env.DATABASE_URL!);
+      const result = await sqlClient`
+        SELECT * FROM orders 
+        WHERE order_type = 'restaurant' 
+        AND booking_id IS NULL
+        ORDER BY created_at DESC
+      `;
       
-      // Direct database query for restaurant orders without bookingId
-      const cafeOrders = await db
-        .select()
-        .from(orders)
-        .where(eq(orders.orderType, "restaurant"))
-        .orderBy(desc(orders.createdAt));
-      
-      console.log(`Found ${cafeOrders.length} restaurant orders`);
-      
-      // Filter in JavaScript for null bookingId
-      const unmergedOrders = cafeOrders.filter(order => order.bookingId === null);
-
-      console.log(`Found ${unmergedOrders.length} unmerged café orders`);
-      res.json(unmergedOrders);
+      console.log(`Found ${result.length} unmerged café orders`);
+      res.json(result);
     } catch (error: any) {
-      console.error("Error fetching unmerged café orders (FULL):", error);
-      console.error("Error stack:", error.stack);
+      console.error("Error fetching unmerged café orders:", error);
       res.status(500).json({ message: error.message });
     }
   });
