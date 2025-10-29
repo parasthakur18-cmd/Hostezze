@@ -192,12 +192,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Auto-create user if doesn't exist (e.g., after database wipe)
       if (!user) {
         const email = req.user.claims.email || `${userId}@replit.user`;
-        const fullName = req.user.claims.name || req.user.claims.email || 'User';
+        const name = req.user.claims.name || req.user.claims.email || 'User';
+        
+        // Split name into first and last name
+        const nameParts = name.split(' ');
+        const firstName = nameParts[0] || 'User';
+        const lastName = nameParts.slice(1).join(' ') || '';
         
         user = await storage.upsertUser({
           id: userId,
           email,
-          fullName,
+          firstName,
+          lastName,
           role: 'admin', // First user gets admin
         });
       }
@@ -356,10 +362,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rooms
-  app.get("/api/rooms", isAuthenticated, async (req, res) => {
+  app.get("/api/rooms", isAuthenticated, async (req: any, res) => {
     try {
-      const rooms = await storage.getAllRooms();
-      res.json(rooms);
+      // Get current user to check role and property assignment
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      
+      // Security: If user not found in storage (deleted/stale session), deny access
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found. Please log in again." });
+      }
+      
+      // If user is a manager, filter by assigned property
+      if (currentUser.role === "manager") {
+        if (currentUser.assignedPropertyId) {
+          // Manager with assigned property sees only their property's rooms
+          const rooms = await storage.getRoomsByProperty(currentUser.assignedPropertyId);
+          res.json(rooms);
+        } else {
+          // Manager without assigned property sees no rooms (return empty array)
+          res.json([]);
+        }
+      } else {
+        // Admin, staff, and kitchen see all rooms
+        const rooms = await storage.getAllRooms();
+        res.json(rooms);
+      }
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

@@ -78,6 +78,7 @@ const managerMenuItems = [
   { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
   { title: "QR Codes", url: "/qr-codes", icon: QrCode },
   { title: "Add-ons", url: "/addons", icon: Plus },
+  { title: "Expenses", url: "/expenses", icon: FileText },
 ];
 
 const staffMenuItems = [
