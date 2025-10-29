@@ -36,6 +36,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -100,6 +101,7 @@ const kitchenMenuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { setOpen, isMobile } = useSidebar();
 
   const menuItems =
     user?.role === "admin"
@@ -113,6 +115,13 @@ export function AppSidebar() {
   const userInitials = user
     ? `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U"
     : "U";
+
+  const handleNavClick = () => {
+    // Close sidebar on navigation (especially useful on mobile/tablet)
+    if (isMobile) {
+      setOpen(false);
+    }
+  };
 
   return (
     <Sidebar>
@@ -137,7 +146,11 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild data-active={isActive}>
-                      <Link href={item.url} data-testid={`link-${item.title.toLowerCase()}`}>
+                      <Link 
+                        href={item.url} 
+                        data-testid={`link-${item.title.toLowerCase()}`}
+                        onClick={handleNavClick}
+                      >
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
