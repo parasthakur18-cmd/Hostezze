@@ -194,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const email = req.user.claims.email || `${userId}@replit.user`;
         const fullName = req.user.claims.name || req.user.claims.email || 'User';
         
-        user = await storage.createUser({
+        user = await storage.upsertUser({
           id: userId,
           email,
           fullName,
