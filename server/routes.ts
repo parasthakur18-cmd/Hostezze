@@ -995,19 +995,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { orderIds, bookingId } = req.body;
       
-      console.log("Merge request:", { orderIds, bookingId, type: typeof bookingId });
+      console.log("=== MERGE REQUEST ===");
+      console.log("Full body:", JSON.stringify(req.body, null, 2));
+      console.log("orderIds:", orderIds);
+      console.log("bookingId:", bookingId);
+      console.log("bookingId type:", typeof bookingId);
+      console.log("bookingId isNaN:", isNaN(bookingId));
       
       if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+        console.log("ERROR: Invalid orderIds");
         return res.status(400).json({ message: "orderIds array is required" });
       }
       
-      if (!bookingId || typeof bookingId !== 'number') {
-        return res.status(400).json({ message: "Valid bookingId is required" });
+      if (!bookingId || isNaN(bookingId)) {
+        console.log("ERROR: Invalid bookingId - value:", bookingId);
+        return res.status(400).json({ message: `Valid bookingId is required. Received: ${bookingId}` });
       }
+      
+      const parsedBookingId = typeof bookingId === 'string' ? parseInt(bookingId, 10) : bookingId;
+      console.log("Parsed bookingId:", parsedBookingId);
 
       // Verify booking exists
-      const booking = await storage.getBooking(bookingId);
+      const booking = await storage.getBooking(parsedBookingId);
       if (!booking) {
+        console.log("ERROR: Booking not found for ID:", parsedBookingId);
         return res.status(404).json({ message: "Booking not found" });
       }
 
@@ -1017,7 +1028,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedOrders = [];
       for (const orderId of orderIds) {
         const updateData: any = {
-          bookingId: bookingId,
+          bookingId: parsedBookingId,
           guestId: booking.guestId,
         };
         
