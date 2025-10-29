@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 import { apiRequest } from "@/lib/queryClient";
 import { type MenuItem } from "@shared/schema";
 import { Label } from "@/components/ui/label";
@@ -385,6 +386,7 @@ export default function Menu() {
           </Card>
         )}
       </div>
+      <Toaster />
     </div>
   );
 }
