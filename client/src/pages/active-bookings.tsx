@@ -79,6 +79,7 @@ export default function ActiveBookings() {
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [discountType, setDiscountType] = useState<string>("none");
   const [discountValue, setDiscountValue] = useState<string>("");
+  const [discountAppliesTo, setDiscountAppliesTo] = useState<string>("total");
   const [includeGst, setIncludeGst] = useState<boolean>(false); // Changed default from true to false
   const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(false); // Changed default from true to false
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,11 +113,12 @@ export default function ActiveBookings() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, includeGst, includeServiceCharge, manualCharges }: { 
+    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, discountAppliesTo, includeGst, includeServiceCharge, manualCharges }: { 
       bookingId: number; 
       paymentMethod: string;
       discountType?: string;
       discountValue?: number;
+      discountAppliesTo?: string;
       includeGst: boolean;
       includeServiceCharge: boolean;
       manualCharges: Array<{ name: string; amount: string }>;
@@ -126,6 +128,7 @@ export default function ActiveBookings() {
         paymentMethod,
         discountType: discountType === "none" ? null : discountType,
         discountValue: discountType === "none" ? null : discountValue,
+        discountAppliesTo: discountType === "none" ? null : discountAppliesTo,
         includeGst,
         includeServiceCharge,
         manualCharges: manualCharges.filter(c => c.name && c.amount && parseFloat(c.amount) > 0),
@@ -142,6 +145,7 @@ export default function ActiveBookings() {
       setPaymentMethod("cash");
       setDiscountType("none");
       setDiscountValue("");
+      setDiscountAppliesTo("total");
       setIncludeGst(false); // Reset to false (0% default)
       setIncludeServiceCharge(false); // Reset to false (0% default)
       setManualCharges([{ name: "", amount: "" }]);
