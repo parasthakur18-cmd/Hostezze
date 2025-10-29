@@ -990,64 +990,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Merge café orders to a booking
+  // Merge café orders to a booking - SIMPLE APPROACH
   app.patch("/api/orders/merge-to-booking", isAuthenticated, async (req, res) => {
     try {
       const { orderIds, bookingId } = req.body;
       
-      console.log("=== MERGE REQUEST ===");
-      console.log("Full body:", JSON.stringify(req.body, null, 2));
-      console.log("orderIds:", orderIds);
-      console.log("bookingId:", bookingId);
-      console.log("bookingId type:", typeof bookingId);
-      console.log("bookingId isNaN:", isNaN(bookingId));
-      
       if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
-        console.log("ERROR: Invalid orderIds");
         return res.status(400).json({ message: "orderIds array is required" });
       }
       
-      if (!bookingId || isNaN(bookingId)) {
-        console.log("ERROR: Invalid bookingId - value:", bookingId);
-        return res.status(400).json({ message: `Valid bookingId is required. Received: ${bookingId}` });
+      if (!bookingId) {
+        return res.status(400).json({ message: "bookingId is required" });
       }
-      
-      const parsedBookingId = typeof bookingId === 'string' ? parseInt(bookingId, 10) : bookingId;
-      console.log("Parsed bookingId:", parsedBookingId);
+
+      const numericBookingId = Number(bookingId);
+      if (isNaN(numericBookingId)) {
+        return res.status(400).json({ message: `Invalid bookingId: ${bookingId}` });
+      }
 
       // Verify booking exists
-      const booking = await storage.getBooking(parsedBookingId);
+      const booking = await storage.getBooking(numericBookingId);
       if (!booking) {
-        console.log("ERROR: Booking not found for ID:", parsedBookingId);
         return res.status(404).json({ message: "Booking not found" });
       }
 
-      console.log("Booking found:", { id: booking.id, guestId: booking.guestId, roomId: booking.roomId });
-
-      // Update each order to link to the booking
-      const updatedOrders = [];
+      // Use direct SQL update - simpler and more reliable
       for (const orderId of orderIds) {
-        const updateData: any = {
-          bookingId: parsedBookingId,
-          guestId: booking.guestId,
-        };
-        
-        // Only add roomId and propertyId if they exist
-        if (booking.roomId) {
-          updateData.roomId = booking.roomId;
-        }
-        if (booking.propertyId) {
-          updateData.propertyId = booking.propertyId;
-        }
-        
-        console.log("Updating order:", orderId, "with data:", updateData);
-        const order = await storage.updateOrder(orderId, updateData);
-        updatedOrders.push(order);
+        await db.execute(sql`
+          UPDATE orders 
+          SET 
+            booking_id = ${numericBookingId},
+            guest_id = ${booking.guestId},
+            room_id = ${booking.roomId},
+            property_id = ${booking.propertyId},
+            updated_at = NOW()
+          WHERE id = ${orderId}
+        `);
       }
 
       res.json({ 
-        message: "Orders merged successfully", 
-        mergedOrders: updatedOrders 
+        message: "Orders merged successfully",
+        count: orderIds.length
       });
     } catch (error: any) {
       console.error("Error merging orders:", error);
