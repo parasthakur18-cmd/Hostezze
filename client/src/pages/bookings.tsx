@@ -510,9 +510,15 @@ export default function Bookings() {
                             <SelectContent>
                               {rooms?.filter(r => r.status === "available").map((room) => {
                                 const property = properties?.find(p => p.id === room.propertyId);
+                                const roomDescription = room.roomCategory === "dormitory" 
+                                  ? `Dormitory - ${room.totalBeds || 0} beds`
+                                  : (room.roomType || "Standard");
+                                const priceText = room.roomCategory === "dormitory" 
+                                  ? `₹${room.pricePerNight}/bed/night`
+                                  : `₹${room.pricePerNight}/night`;
                                 return (
                                   <SelectItem key={room.id} value={room.id.toString()}>
-                                    {property?.name} - Room {room.roomNumber} ({room.roomType}) - ₹{room.pricePerNight}/night
+                                    {property?.name} - Room {room.roomNumber} ({roomDescription}) - {priceText}
                                   </SelectItem>
                                 );
                               })}
@@ -559,6 +565,12 @@ export default function Bookings() {
                             {rooms?.filter(r => r.status === "available").map((room) => {
                               const property = properties?.find(p => p.id === room.propertyId);
                               const isSelected = selectedRoomIds.includes(room.id);
+                              const roomDescription = room.roomCategory === "dormitory" 
+                                ? `Dormitory (${room.totalBeds || 0} beds)`
+                                : (room.roomType || "Standard");
+                              const priceText = room.roomCategory === "dormitory" 
+                                ? `₹${room.pricePerNight}/bed/night`
+                                : `₹${room.pricePerNight}/night`;
                               return (
                                 <tr 
                                   key={room.id} 
@@ -589,8 +601,8 @@ export default function Bookings() {
                                   </td>
                                   <td className="p-2 text-sm">{property?.name}</td>
                                   <td className="p-2 text-sm font-mono font-semibold">{room.roomNumber}</td>
-                                  <td className="p-2 text-sm text-muted-foreground">{room.roomType}</td>
-                                  <td className="p-2 text-sm font-medium">₹{room.pricePerNight}</td>
+                                  <td className="p-2 text-sm text-muted-foreground">{roomDescription}</td>
+                                  <td className="p-2 text-sm font-medium">{priceText}</td>
                                 </tr>
                               );
                             })}
