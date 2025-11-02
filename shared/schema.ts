@@ -289,7 +289,9 @@ export const enquiries = pgTable("enquiries", {
   guestEmail: varchar("guest_email", { length: 255 }),
   checkInDate: timestamp("check_in_date").notNull(),
   checkOutDate: timestamp("check_out_date").notNull(),
-  roomId: integer("room_id").references(() => rooms.id),
+  roomId: integer("room_id").references(() => rooms.id), // Single room for standard enquiries
+  roomIds: integer("room_ids").array(), // Multiple rooms for group enquiries
+  isGroupEnquiry: boolean("is_group_enquiry").notNull().default(false), // True if enquiry for multiple rooms
   numberOfGuests: integer("number_of_guests").notNull().default(1),
   priceQuoted: decimal("price_quoted", { precision: 10, scale: 2 }),
   advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }),

@@ -13,6 +13,8 @@ import {
   CreditCard,
   Check,
   MessageSquare,
+  Edit,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,12 +53,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Enquiry, MessageTemplate } from "@shared/schema";
+import type { Enquiry, MessageTemplate, Room } from "@shared/schema";
 
 export default function Enquiries() {
   const { toast } = useToast();
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [customMessage, setCustomMessage] = useState("");
   const [messageChannel, setMessageChannel] = useState<"sms" | "whatsapp">("sms");
@@ -67,6 +71,10 @@ export default function Enquiries() {
 
   const { data: templates } = useQuery<MessageTemplate[]>({
     queryKey: ["/api/message-templates"],
+  });
+
+  const { data: rooms } = useQuery<Room[]>({
+    queryKey: ["/api/rooms"],
   });
 
   const confirmEnquiryMutation = useMutation({
@@ -86,6 +94,28 @@ export default function Enquiries() {
       toast({
         title: "Error",
         description: error.message || "Failed to confirm enquiry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelEnquiryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("PATCH", `/api/enquiries/${id}/status`, { status: "cancelled" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
+      toast({
+        title: "Enquiry Cancelled",
+        description: "The enquiry has been cancelled successfully.",
+      });
+      setIsCancelDialogOpen(false);
+      setSelectedEnquiry(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel enquiry",
         variant: "destructive",
       });
     },
@@ -353,7 +383,22 @@ export default function Enquiries() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Hotel className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">Room #{enquiry.roomId}</span>
+                            {enquiry.isGroupEnquiry && enquiry.roomIds && enquiry.roomIds.length > 0 ? (
+                              <span className="text-sm">
+                                {enquiry.roomIds.length} Rooms (Group)
+                              </span>
+                            ) : enquiry.roomId ? (
+                              <span className="text-sm">
+                                {rooms?.find(r => r.id === enquiry.roomId)?.roomNumber || `Room #${enquiry.roomId}`}
+                                {rooms?.find(r => r.id === enquiry.roomId)?.roomType && (
+                                  <span className="text-muted-foreground text-xs ml-1">
+                                    ({rooms.find(r => r.id === enquiry.roomId)?.roomType})
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">No room assigned</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -379,16 +424,44 @@ export default function Enquiries() {
                         <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-2">
-                            {enquiry.advanceAmount && enquiry.paymentStatus === "pending" && (
+                            {enquiry.status !== "confirmed" && enquiry.status !== "cancelled" && (
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="default"
                                 onClick={() => confirmEnquiryMutation.mutate(enquiry.id)}
                                 disabled={confirmEnquiryMutation.isPending}
                                 data-testid={`button-confirm-enquiry-${enquiry.id}`}
                               >
                                 <Check className="h-4 w-4 mr-1" />
-                                Confirm Enquiry
+                                Confirm
+                              </Button>
+                            )}
+                            {enquiry.status !== "confirmed" && enquiry.status !== "cancelled" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedEnquiry(enquiry);
+                                  setIsEditDialogOpen(true);
+                                }}
+                                data-testid={`button-edit-enquiry-${enquiry.id}`}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                            {enquiry.status !== "confirmed" && enquiry.status !== "cancelled" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedEnquiry(enquiry);
+                                  setIsCancelDialogOpen(true);
+                                }}
+                                data-testid={`button-cancel-enquiry-${enquiry.id}`}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Cancel
                               </Button>
                             )}
                             <Button
@@ -398,8 +471,8 @@ export default function Enquiries() {
                               data-testid={`button-send-message-${enquiry.id}`}
                             >
                               <MessageSquare className="h-4 w-4 mr-1" />
-                              Send Message
-                            </Button>
+                              Message
+                              </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -521,6 +594,66 @@ export default function Enquiries() {
                 {sendMessageMutation.isPending ? "Sending..." : "Send Message"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Enquiry?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this enquiry for {selectedEnquiry?.guestName}?
+              This action can be reversed by editing the enquiry status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCancelDialogOpen(false);
+                setSelectedEnquiry(null);
+              }}
+              data-testid="button-cancel-dialog-close"
+            >
+              Keep Enquiry
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => selectedEnquiry && cancelEnquiryMutation.mutate(selectedEnquiry.id)}
+              disabled={cancelEnquiryMutation.isPending}
+              data-testid="button-cancel-dialog-confirm"
+            >
+              Cancel Enquiry
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog - Placeholder for now */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Enquiry</DialogTitle>
+            <DialogDescription>
+              Update enquiry details for {selectedEnquiry?.guestName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-4 text-center text-muted-foreground">
+            <p>Edit functionality will be available soon.</p>
+            <p className="text-sm mt-2">You can cancel and create a new enquiry for now.</p>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setSelectedEnquiry(null);
+              }}
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
