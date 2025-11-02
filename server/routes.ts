@@ -1714,6 +1714,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const booking = await storage.createBooking({
         propertyId: enquiry.propertyId,
         roomId: enquiry.roomId,
+        roomIds: enquiry.roomIds,
+        isGroupBooking: enquiry.isGroupEnquiry || false,
+        bedsBooked: enquiry.bedsBooked,
         guestId: guestId,
         checkInDate: enquiry.checkInDate,
         checkOutDate: enquiry.checkOutDate,
@@ -1723,7 +1726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "confirmed",
         specialRequests: enquiry.specialRequests,
         source: "walk-in",
-        mealPlan: "EP",
+        mealPlan: enquiry.mealPlan || "EP",
       });
 
       // Update enquiry status to confirmed and payment status to received
