@@ -17,6 +17,8 @@ The frontend uses **React 18** with **TypeScript** (Vite), **Wouter** for routin
 ### Feature Specifications
 -   **Multi-Property Management**: Supports managing multiple resort properties.
 -   **Booking & Guest Management**: Comprehensive booking coordination, guest tracking, and advanced pricing options with booking source and meal plan tracking. Includes filter tabs (All, Active, Completed, Cancelled) with real-time badge counts.
+-   **Group Bookings**: Tabbed booking interface allows creating group bookings for multiple rooms under a single guest name and contact. Features checkbox-based room selection table with summary showing total price per night across all selected rooms. All rooms automatically blocked for chosen dates.
+-   **Dormitory Room Support**: New room category "Dormitory" allows defining bed count for backpacker/solo traveler accommodation. Price displayed per bed per night. Supports bed-based booking management.
 -   **Booking Deletion**: Safe deletion with protection - prevents deletion of bookings with bills or food orders to maintain financial integrity.
 -   **Payment & Communication System**: Tracks advance payment status, sends messages to guests via WhatsApp/SMS using templates, and logs all communications.
 -   **Restaurant & Order Management**: Integrates restaurant operations, order tracking, menu item management, and food orders reporting with status-based kitchen views (Active/Pending/Completed tabs).

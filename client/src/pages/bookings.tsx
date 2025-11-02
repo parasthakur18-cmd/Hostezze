@@ -46,7 +46,9 @@ export default function Bookings() {
   const [activeTab, setActiveTab] = useState("all");
   const [deleteBookingId, setDeleteBookingId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const { toast } = useToast();
+  const [bookingType, setBookingType] = useState<"single" | "group">("single");
+  const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
+  const { toast} = useToast();
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
@@ -204,14 +206,26 @@ export default function Bookings() {
       return;
     }
 
-    // Validate room selection
-    if (!data.roomId) {
-      toast({
-        title: "Error",
-        description: "Please select a room",
-        variant: "destructive",
-      });
-      return;
+    // Validate room selection based on booking type
+    if (bookingType === "single") {
+      if (!data.roomId) {
+        toast({
+          title: "Error",
+          description: "Please select a room",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      // Group booking
+      if (selectedRoomIds.length === 0) {
+        toast({
+          title: "Error",
+          description: "Please select at least one room for group booking",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Create guest first (ID proof is optional)
@@ -230,10 +244,28 @@ export default function Bookings() {
       const newGuest = await guestResponse.json();
       
       // Then create booking with the new guest
-      const bookingData = {
-        ...data,
-        guestId: newGuest.id,
-      };
+      let bookingData;
+      if (bookingType === "group") {
+        // Group booking - use roomIds array
+        const firstRoom = rooms?.find(r => r.id === selectedRoomIds[0]);
+        bookingData = {
+          ...data,
+          guestId: newGuest.id,
+          roomId: null, // No single room for group booking
+          roomIds: selectedRoomIds,
+          isGroupBooking: true,
+          propertyId: firstRoom?.propertyId, // All rooms should be from same property
+        };
+      } else {
+        // Single room booking
+        bookingData = {
+          ...data,
+          guestId: newGuest.id,
+          roomIds: null,
+          isGroupBooking: false,
+        };
+      }
+      
       createMutation.mutate(bookingData as InsertBooking);
     } catch (error: any) {
       toast({
@@ -351,6 +383,8 @@ export default function Bookings() {
               if (!open) {
                 form.reset();
                 setQuickGuestData({ fullName: "", phone: "", email: "", idProofImage: "" });
+                setBookingType("single");
+                setSelectedRoomIds([]);
               }
             }}
           >
@@ -428,43 +462,137 @@ export default function Bookings() {
                     </ObjectUploader>
                   </div>
                 </div>
-                <FormField
-                  control={form.control}
-                  name="roomId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Room</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          const roomId = parseInt(value);
-                          field.onChange(roomId);
-                          const selectedRoom = rooms?.find(r => r.id === roomId);
-                          if (selectedRoom) {
-                            form.setValue("propertyId", selectedRoom.propertyId);
-                          }
-                        }}
-                        value={field.value ? field.value.toString() : undefined}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-booking-room">
-                            <SelectValue placeholder="Select room" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {rooms?.filter(r => r.status === "available").map((room) => {
-                            const property = properties?.find(p => p.id === room.propertyId);
-                            return (
-                              <SelectItem key={room.id} value={room.id.toString()}>
-                                {property?.name} - Room {room.roomNumber} ({room.roomType}) - ₹{room.pricePerNight}/night
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <Tabs value={bookingType} onValueChange={(value) => setBookingType(value as "single" | "group")} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="single" data-testid="tab-single-room">Single Room</TabsTrigger>
+                    <TabsTrigger value="group" data-testid="tab-group-booking">Group Booking</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="single" className="mt-4">
+                    <FormField
+                      control={form.control}
+                      name="roomId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Room</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              const roomId = parseInt(value);
+                              field.onChange(roomId);
+                              const selectedRoom = rooms?.find(r => r.id === roomId);
+                              if (selectedRoom) {
+                                form.setValue("propertyId", selectedRoom.propertyId);
+                              }
+                            }}
+                            value={field.value ? field.value.toString() : undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-booking-room">
+                                <SelectValue placeholder="Select room" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {rooms?.filter(r => r.status === "available").map((room) => {
+                                const property = properties?.find(p => p.id === room.propertyId);
+                                return (
+                                  <SelectItem key={room.id} value={room.id.toString()}>
+                                    {property?.name} - Room {room.roomNumber} ({room.roomType}) - ₹{room.pricePerNight}/night
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+                  <TabsContent value="group" className="mt-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <FormLabel>Select Rooms for Group Booking</FormLabel>
+                        <Badge variant="secondary" data-testid="badge-selected-rooms">
+                          {selectedRoomIds.length} room{selectedRoomIds.length !== 1 ? 's' : ''} selected
+                        </Badge>
+                      </div>
+                      <div className="border border-border rounded-md max-h-64 overflow-y-auto">
+                        <table className="w-full">
+                          <thead className="bg-muted sticky top-0">
+                            <tr className="border-b border-border">
+                              <th className="p-2 text-left text-xs font-medium">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRoomIds.length === rooms?.filter(r => r.status === "available").length && rooms?.filter(r => r.status === "available").length > 0}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedRoomIds(rooms?.filter(r => r.status === "available").map(r => r.id) || []);
+                                    } else {
+                                      setSelectedRoomIds([]);
+                                    }
+                                  }}
+                                  data-testid="checkbox-select-all-rooms"
+                                />
+                              </th>
+                              <th className="p-2 text-left text-xs font-medium">Property</th>
+                              <th className="p-2 text-left text-xs font-medium">Room</th>
+                              <th className="p-2 text-left text-xs font-medium">Type</th>
+                              <th className="p-2 text-left text-xs font-medium">Price/Night</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rooms?.filter(r => r.status === "available").map((room) => {
+                              const property = properties?.find(p => p.id === room.propertyId);
+                              const isSelected = selectedRoomIds.includes(room.id);
+                              return (
+                                <tr 
+                                  key={room.id} 
+                                  className={`border-b border-border hover-elevate cursor-pointer ${isSelected ? 'bg-primary/10' : ''}`}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedRoomIds(selectedRoomIds.filter(id => id !== room.id));
+                                    } else {
+                                      setSelectedRoomIds([...selectedRoomIds, room.id]);
+                                    }
+                                  }}
+                                  data-testid={`row-room-${room.id}`}
+                                >
+                                  <td className="p-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        if (e.target.checked) {
+                                          setSelectedRoomIds([...selectedRoomIds, room.id]);
+                                        } else {
+                                          setSelectedRoomIds(selectedRoomIds.filter(id => id !== room.id));
+                                        }
+                                      }}
+                                      data-testid={`checkbox-room-${room.id}`}
+                                    />
+                                  </td>
+                                  <td className="p-2 text-sm">{property?.name}</td>
+                                  <td className="p-2 text-sm font-mono font-semibold">{room.roomNumber}</td>
+                                  <td className="p-2 text-sm text-muted-foreground">{room.roomType}</td>
+                                  <td className="p-2 text-sm font-medium">₹{room.pricePerNight}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {selectedRoomIds.length > 0 && (() => {
+                        const selectedRooms = rooms?.filter(r => selectedRoomIds.includes(r.id)) || [];
+                        const totalPrice = selectedRooms.reduce((sum, r) => sum + parseFloat(r.pricePerNight.toString()), 0);
+                        return (
+                          <div className="p-3 bg-muted/50 rounded-md text-sm">
+                            <p className="font-medium">Group Booking Summary:</p>
+                            <p className="text-muted-foreground">{selectedRoomIds.length} rooms selected • Total: ₹{totalPrice}/night</p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </TabsContent>
+                </Tabs>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
