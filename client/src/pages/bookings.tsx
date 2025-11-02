@@ -545,7 +545,7 @@ export default function Bookings() {
                                     type="number"
                                     min="1"
                                     max={selectedRoom.totalBeds || 1}
-                                    placeholder="1"
+                                    placeholder="Enter number of beds"
                                     value={field.value || ""}
                                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : "")}
                                     data-testid="input-beds-booked"
@@ -750,14 +750,14 @@ export default function Bookings() {
                             type="number"
                             min="0"
                             step="0.01"
-                            placeholder="0"
+                            placeholder="Enter amount"
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value || "0")}
+                            onChange={(e) => field.onChange(e.target.value || "")}
                             data-testid="input-booking-advance"
                           />
                         </FormControl>
                         <p className="text-xs text-muted-foreground">
-                          Amount received in advance
+                          Amount received in advance (leave empty for ₹0)
                         </p>
                         <FormMessage />
                       </FormItem>
