@@ -840,6 +840,15 @@ export default function Bookings() {
             const property = properties?.find((p) => p.id === booking.propertyId);
             const guest = guests?.find((g) => g.id === booking.guestId);
             const room = rooms?.find((r) => r.id === booking.roomId);
+            
+            // For group bookings, get all rooms
+            const groupRooms = booking.isGroupBooking && booking.roomIds
+              ? rooms?.filter((r) => booking.roomIds?.includes(r.id)) || []
+              : [];
+            
+            const roomDisplay = booking.isGroupBooking && groupRooms.length > 0
+              ? groupRooms.map(r => `Room ${r.roomNumber}`).join(", ")
+              : room ? `Room ${room.roomNumber}` : "Room TBA";
 
             return (
               <Card key={booking.id} className="hover-elevate" data-testid={`card-booking-${booking.id}`}>
@@ -850,14 +859,19 @@ export default function Bookings() {
                         <Hotel className="h-6 w-6" />
                       </div>
                       <div>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 flex-wrap">
                           {property?.name || "Unknown Property"}
                           <Badge className={statusColors[booking.status as keyof typeof statusColors] || ""} data-testid={`badge-booking-status-${booking.id}`}>
                             {booking.status}
                           </Badge>
+                          {booking.isGroupBooking && (
+                            <Badge variant="secondary" className="bg-blue-500 text-white" data-testid={`badge-group-booking-${booking.id}`}>
+                              Group Booking
+                            </Badge>
+                          )}
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {guest?.fullName || "Unknown Guest"} • {room ? `Room ${room.roomNumber}` : "Room TBA"}
+                        <p className="text-sm text-muted-foreground mt-1" data-testid={`text-booking-details-${booking.id}`}>
+                          {guest?.fullName || "Unknown Guest"} • {roomDisplay}
                         </p>
                       </div>
                     </div>
@@ -933,10 +947,20 @@ export default function Bookings() {
                       </div>
                     )}
                     {booking.totalAmount && (
-                      <div>
-                        <p className="text-muted-foreground mb-1">Total Amount</p>
-                        <p className="font-semibold font-mono text-lg" data-testid={`text-booking-total-${booking.id}`}>₹{booking.totalAmount}</p>
-                      </div>
+                      <>
+                        <div>
+                          <p className="text-muted-foreground mb-1">Total Amount</p>
+                          <p className="font-semibold font-mono text-lg" data-testid={`text-booking-total-${booking.id}`}>₹{booking.totalAmount}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-1">Advance Paid</p>
+                          <p className="font-semibold font-mono text-lg text-green-600" data-testid={`text-booking-advance-${booking.id}`}>₹{booking.advanceAmount || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-1">Balance Due</p>
+                          <p className="font-semibold font-mono text-lg text-amber-600" data-testid={`text-booking-balance-${booking.id}`}>₹{(booking.totalAmount - (parseFloat(booking.advanceAmount || "0")))}</p>
+                        </div>
+                      </>
                     )}
                   </div>
                 </CardContent>

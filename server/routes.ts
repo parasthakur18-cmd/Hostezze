@@ -623,11 +623,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const now = new Date();
         const nightsStayed = Math.max(1, Math.ceil((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
 
-        // Calculate charges
-        const customPrice = booking.customPrice ? parseFloat(String(booking.customPrice)) : null;
-        const roomPrice = room.pricePerNight ? parseFloat(String(room.pricePerNight)) : 0;
-        const pricePerNight = customPrice || roomPrice;
-        const roomCharges = pricePerNight * nightsStayed;
+        // Calculate room charges - handle both single and group bookings
+        let roomCharges = 0;
+        if (booking.isGroupBooking && booking.roomIds && booking.roomIds.length > 0) {
+          // Group booking: calculate total for all rooms
+          for (const roomId of booking.roomIds) {
+            const groupRoom = allRooms.find(r => r.id === roomId);
+            if (groupRoom) {
+              const customPrice = booking.customPrice ? parseFloat(String(booking.customPrice)) : null;
+              const roomPrice = groupRoom.pricePerNight ? parseFloat(String(groupRoom.pricePerNight)) : 0;
+              const pricePerNight = customPrice ? customPrice / booking.roomIds.length : roomPrice;
+              roomCharges += pricePerNight * nightsStayed;
+            }
+          }
+        } else {
+          // Single room booking
+          const customPrice = booking.customPrice ? parseFloat(String(booking.customPrice)) : null;
+          const roomPrice = room.pricePerNight ? parseFloat(String(room.pricePerNight)) : 0;
+          const pricePerNight = customPrice || roomPrice;
+          roomCharges = pricePerNight * nightsStayed;
+        }
 
         const bookingOrders = allOrders.filter(o => o.bookingId === booking.id);
         const foodCharges = bookingOrders.reduce((sum, order) => {
@@ -892,7 +907,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Fetch room to get price
+      // Fetch room(s) to get price
       const room = booking.roomId ? await storage.getRoom(booking.roomId) : null;
       
       // Calculate nights
@@ -900,9 +915,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const checkOutDate = new Date(booking.checkOutDate);
       const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Calculate room charges (use customPrice if available, otherwise room price)
-      const pricePerNight = booking.customPrice ? parseFloat(booking.customPrice) : (room ? parseFloat(room.pricePerNight) : 0);
-      const roomCharges = pricePerNight * nights;
+      // Calculate room charges - handle both single and group bookings
+      let roomCharges = 0;
+      if (booking.isGroupBooking && booking.roomIds && booking.roomIds.length > 0) {
+        // Group booking: calculate total for all rooms
+        for (const roomId of booking.roomIds) {
+          const groupRoom = await storage.getRoom(roomId);
+          if (groupRoom) {
+            const pricePerNight = booking.customPrice ? parseFloat(booking.customPrice) / booking.roomIds.length : parseFloat(groupRoom.pricePerNight);
+            roomCharges += pricePerNight * nights;
+          }
+        }
+      } else {
+        // Single room booking
+        const pricePerNight = booking.customPrice ? parseFloat(booking.customPrice) : (room ? parseFloat(room.pricePerNight) : 0);
+        roomCharges = pricePerNight * nights;
+      }
 
       // Calculate food charges (reusing allOrders and bookingOrders from pending order check above)
       const foodCharges = bookingOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || "0"), 0);
