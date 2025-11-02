@@ -16,12 +16,16 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Room, Property } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useLocation } from "wouter";
 
 const enquiryFormSchema = z.object({
   guestName: z.string().min(2, "Name must be at least 2 characters"),
   guestPhone: z.string().min(10, "Phone number must be at least 10 digits"),
   guestEmail: z.string().email("Invalid email").optional().or(z.literal("")),
   numberOfGuests: z.coerce.number().int().min(1, "At least 1 guest required"),
+  mealPlan: z.enum(["EP", "CP", "MAP", "AP"]).default("EP"),
   priceQuoted: z.coerce.number().min(0).optional(),
   advanceAmount: z.coerce.number().min(0).optional(),
   specialRequests: z.string().optional(),
@@ -31,14 +35,18 @@ type EnquiryFormData = z.infer<typeof enquiryFormSchema>;
 
 export default function NewEnquiryCalendar() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [selectedPropertyId, setSelectedPropertyId] = useState<number>();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [checkInDate, setCheckInDate] = useState<Date>();
   const [checkOutDate, setCheckOutDate] = useState<Date>();
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<number>();
+  const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [showGuestForm, setShowGuestForm] = useState(false);
+  const [bookingType, setBookingType] = useState<"single" | "group">("single");
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   const { data: properties } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
@@ -51,6 +59,7 @@ export default function NewEnquiryCalendar() {
       guestPhone: "",
       guestEmail: "",
       numberOfGuests: 1,
+      mealPlan: "EP",
       priceQuoted: undefined,
       advanceAmount: undefined,
       specialRequests: "",
@@ -65,15 +74,13 @@ export default function NewEnquiryCalendar() {
       queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
       toast({
         title: "Enquiry Created!",
-        description: "The enquiry has been saved successfully.",
+        description: "The enquiry has been saved successfully. Redirecting to enquiries page...",
       });
-      // Reset everything
-      setCheckInDate(undefined);
-      setCheckOutDate(undefined);
-      setAvailableRooms([]);
-      setSelectedRoomId(undefined);
-      setShowGuestForm(false);
-      form.reset();
+      
+      // Redirect after short delay
+      setTimeout(() => {
+        navigate("/enquiries");
+      }, 1500);
     },
     onError: (error: any) => {
       toast({
@@ -160,14 +167,50 @@ export default function NewEnquiryCalendar() {
 
   const handleRoomSelect = (roomId: number) => {
     setSelectedRoomId(roomId);
+    const room = availableRooms.find(r => r.id === roomId);
+    setSelectedRoom(room || null);
+    
+    // For dormitory rooms, set numberOfGuests to 1 bed by default
+    if (room?.roomType === "Dormitory") {
+      form.setValue("numberOfGuests", 1);
+    }
+    
     setShowGuestForm(true);
   };
 
+  const handleRoomToggle = (roomId: number) => {
+    setSelectedRoomIds(prev => {
+      if (prev.includes(roomId)) {
+        return prev.filter(id => id !== roomId);
+      } else {
+        return [...prev, roomId];
+      }
+    });
+  };
+
   const onSubmit = (data: EnquiryFormData) => {
-    if (!selectedPropertyId || !checkInDate || !checkOutDate || !selectedRoomId) {
+    if (!selectedPropertyId || !checkInDate || !checkOutDate) {
       toast({
         title: "Missing Information",
-        description: "Please select property, dates, and room first",
+        description: "Please select property and dates first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (bookingType === "single" && !selectedRoomId) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a room first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (bookingType === "group" && selectedRoomIds.length === 0) {
+      toast({
+        title: "Missing Information",
+        description: "Please select at least one room for the group booking",
         variant: "destructive",
       });
       return;
@@ -180,8 +223,11 @@ export default function NewEnquiryCalendar() {
       guestEmail: data.guestEmail || null,
       checkInDate: checkInDate,
       checkOutDate: checkOutDate,
-      roomId: selectedRoomId,
+      roomId: bookingType === "single" ? selectedRoomId : null,
+      roomIds: bookingType === "group" ? selectedRoomIds : undefined,
+      isGroupEnquiry: bookingType === "group",
       numberOfGuests: data.numberOfGuests,
+      mealPlan: data.mealPlan,
       priceQuoted: data.priceQuoted?.toString() || null,
       advanceAmount: data.advanceAmount?.toString() || null,
       specialRequests: data.specialRequests || null,
@@ -327,43 +373,121 @@ export default function NewEnquiryCalendar() {
 
         {/* Right Column - Rooms & Guest Form */}
         <div className="space-y-4">
-          {/* Available Rooms */}
+          {/* Available Rooms - with Tabs for Single/Group */}
           {checkOutDate && availableRooms.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>3. Select Room</CardTitle>
+                <CardTitle>3. Select Room(s)</CardTitle>
                 <CardDescription>{availableRooms.length} room(s) available</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {availableRooms.map(room => (
-                    <button
-                      key={room.id}
-                      onClick={() => handleRoomSelect(room.id)}
-                      className={cn(
-                        "w-full p-4 rounded-lg border-2 text-left transition-colors",
-                        selectedRoomId === room.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      )}
-                      data-testid={`button-select-room-${room.id}`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-semibold">Room {room.roomNumber}</div>
-                          <div className="text-sm text-muted-foreground">{room.roomType}</div>
-                          <div className="text-sm font-medium mt-1">₹{room.pricePerNight}/night</div>
-                        </div>
-                        {selectedRoomId === room.id && (
-                          <Badge variant="default">
-                            <Check className="h-3 w-3 mr-1" />
-                            Selected
-                          </Badge>
+                <Tabs value={bookingType} onValueChange={(v) => {
+                  setBookingType(v as "single" | "group");
+                  setSelectedRoomId(undefined);
+                  setSelectedRoomIds([]);
+                  setSelectedRoom(null);
+                  setShowGuestForm(false);
+                }}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="single" data-testid="tab-single-booking">Single Room</TabsTrigger>
+                    <TabsTrigger value="group" data-testid="tab-group-booking">Group Booking</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="single" className="space-y-2">
+                    {availableRooms.map(room => (
+                      <button
+                        key={room.id}
+                        onClick={() => handleRoomSelect(room.id)}
+                        className={cn(
+                          "w-full p-4 rounded-lg border-2 text-left transition-colors",
+                          selectedRoomId === room.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
                         )}
+                        data-testid={`button-select-room-${room.id}`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-semibold">Room {room.roomNumber}</div>
+                            <div className="text-sm text-muted-foreground">{room.roomType}</div>
+                            {room.roomType === "Dormitory" && room.totalBeds ? (
+                              <>
+                                <div className="text-xs text-muted-foreground mt-1">{room.totalBeds} beds available</div>
+                                <div className="text-sm font-medium">₹{room.pricePerNight}/bed/night</div>
+                              </>
+                            ) : (
+                              <div className="text-sm font-medium mt-1">₹{room.pricePerNight}/night</div>
+                            )}
+                          </div>
+                          {selectedRoomId === room.id && (
+                            <Badge variant="default">
+                              <Check className="h-3 w-3 mr-1" />
+                              Selected
+                            </Badge>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </TabsContent>
+                  
+                  <TabsContent value="group" className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Select multiple rooms for a group booking. All rooms will be reserved for the same guest and dates.
+                    </p>
+                    <div className="space-y-2">
+                      {availableRooms.map(room => {
+                        const isSelected = selectedRoomIds.includes(room.id);
+                        
+                        return (
+                          <div
+                            key={room.id}
+                            className={cn(
+                              "flex items-start gap-3 p-4 rounded-lg border-2 transition-colors cursor-pointer",
+                              isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                            )}
+                            onClick={() => {
+                              handleRoomToggle(room.id);
+                              if (selectedRoomIds.length > 0 || !isSelected) {
+                                setShowGuestForm(true);
+                              } else {
+                                setShowGuestForm(false);
+                              }
+                            }}
+                            data-testid={`checkbox-room-${room.id}`}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => handleRoomToggle(room.id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <div className="font-semibold">Room {room.roomNumber}</div>
+                              <div className="text-sm text-muted-foreground">{room.roomType}</div>
+                              {room.roomType === "Dormitory" && room.totalBeds ? (
+                                <>
+                                  <div className="text-xs text-muted-foreground mt-1">{room.totalBeds} beds available</div>
+                                  <div className="text-sm font-medium">₹{room.pricePerNight}/bed/night</div>
+                                </>
+                              ) : (
+                                <div className="text-sm font-medium mt-1">₹{room.pricePerNight}/night</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {selectedRoomIds.length > 0 && (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <div className="text-sm font-medium">{selectedRoomIds.length} room(s) selected</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Total: ₹{availableRooms
+                            .filter(r => selectedRoomIds.includes(r.id))
+                            .reduce((sum, r) => sum + parseFloat(r.pricePerNight), 0)}/night
+                        </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}
@@ -428,21 +552,63 @@ export default function NewEnquiryCalendar() {
                       )}
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="numberOfGuests"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Guests *</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" {...field} data-testid="input-guests" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <FormField
+                      control={form.control}
+                      name="numberOfGuests"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {selectedRoom?.roomType === "Dormitory" ? "Number of Beds *" : "Number of Guests *"}
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              max={selectedRoom?.roomType === "Dormitory" && selectedRoom.totalBeds ? selectedRoom.totalBeds : undefined}
+                              {...field}
+                              data-testid="input-guests"
+                            />
+                          </FormControl>
+                          {selectedRoom?.roomType === "Dormitory" && selectedRoom.totalBeds && (
+                            <p className="text-xs text-muted-foreground">
+                              Maximum {selectedRoom.totalBeds} beds available in this dormitory
+                            </p>
+                          )}
+                          {selectedRoom?.roomType === "Dormitory" && (
+                            <p className="text-xs text-muted-foreground">
+                              Price: ₹{selectedRoom.pricePerNight}/bed/night
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
+                    <FormField
+                      control={form.control}
+                      name="mealPlan"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Meal Plan *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-meal-plan">
+                                <SelectValue placeholder="Select meal plan" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="EP">EP (Room Only)</SelectItem>
+                              <SelectItem value="CP">CP (With Breakfast)</SelectItem>
+                              <SelectItem value="MAP">MAP (Breakfast + Dinner)</SelectItem>
+                              <SelectItem value="AP">AP (All Meals)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="priceQuoted"
@@ -459,24 +625,24 @@ export default function NewEnquiryCalendar() {
                           </FormItem>
                         )}
                       />
-                    </div>
 
-                    <FormField
-                      control={form.control}
-                      name="advanceAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Advance Amount</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input type="number" placeholder="0" className="pl-9" {...field} data-testid="input-advance" />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="advanceAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Advance Amount</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input type="number" placeholder="0" className="pl-9" {...field} data-testid="input-advance" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <FormField
                       control={form.control}
