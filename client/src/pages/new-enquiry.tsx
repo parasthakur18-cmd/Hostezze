@@ -171,6 +171,7 @@ export default function NewEnquiry() {
       checkOutDate: data.checkOutDate,
       roomId: data.roomId && typeof data.roomId === 'number' ? data.roomId : null,
       numberOfGuests: data.numberOfGuests,
+      bedsBooked: selectedRoom?.roomCategory === "dormitory" ? data.numberOfGuests : null,
       mealPlan: data.mealPlan,
       priceQuoted: data.priceQuoted !== undefined && data.priceQuoted !== null 
         ? data.priceQuoted.toString() 
@@ -376,7 +377,7 @@ export default function NewEnquiry() {
                             setSelectedRoom(room || null);
                             
                             // For dormitory rooms, set numberOfGuests to 1 bed by default
-                            if (room?.roomType === "Dormitory") {
+                            if (room?.roomCategory === "dormitory") {
                               form.setValue("numberOfGuests", 1);
                             }
                           }}
@@ -393,9 +394,9 @@ export default function NewEnquiry() {
                                 key={room.id}
                                 value={room.id.toString()}
                               >
-                                Room {room.roomNumber} - {room.roomType}
-                                {room.roomType === "Dormitory" && room.bedCount 
-                                  ? ` (${room.bedCount} beds available)` 
+                                Room {room.roomNumber} - {room.roomType || room.roomCategory}
+                                {room.roomCategory === "dormitory" && room.totalBeds 
+                                  ? ` (${room.totalBeds} beds available - ₹${room.pricePerNight}/bed/night)` 
                                   : ` (₹${room.pricePerNight}/night)`}
                               </SelectItem>
                             ))}
@@ -482,24 +483,28 @@ export default function NewEnquiry() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {selectedRoom?.roomType === "Dormitory" ? "Number of Beds *" : "Number of Guests *"}
+                        {selectedRoom?.roomCategory === "dormitory" ? "Number of Beds *" : "Number of Guests *"}
                       </FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           min="1"
-                          max={selectedRoom?.roomType === "Dormitory" && selectedRoom.bedCount ? selectedRoom.bedCount : undefined}
+                          max={selectedRoom?.roomCategory === "dormitory" && selectedRoom.totalBeds ? selectedRoom.totalBeds : undefined}
                           placeholder="1"
                           data-testid="input-number-guests"
                           {...field}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 1;
+                            field.onChange(value);
+                          }}
                         />
                       </FormControl>
-                      {selectedRoom?.roomType === "Dormitory" && selectedRoom.bedCount && (
+                      {selectedRoom?.roomCategory === "dormitory" && selectedRoom.totalBeds && (
                         <p className="text-xs text-muted-foreground">
-                          Maximum {selectedRoom.bedCount} beds available in this dormitory
+                          Maximum {selectedRoom.totalBeds} beds available in this dormitory
                         </p>
                       )}
-                      {selectedRoom?.roomType === "Dormitory" && (
+                      {selectedRoom?.roomCategory === "dormitory" && (
                         <p className="text-xs text-muted-foreground">
                           Price: ₹{selectedRoom.pricePerNight}/bed/night
                         </p>

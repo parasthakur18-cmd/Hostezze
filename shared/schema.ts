@@ -292,6 +292,7 @@ export const enquiries = pgTable("enquiries", {
   roomId: integer("room_id").references(() => rooms.id), // Single room for standard enquiries
   roomIds: integer("room_ids").array(), // Multiple rooms for group enquiries
   isGroupEnquiry: boolean("is_group_enquiry").notNull().default(false), // True if enquiry for multiple rooms
+  bedsBooked: integer("beds_booked"), // For dormitory enquiries - number of beds to book
   numberOfGuests: integer("number_of_guests").notNull().default(1),
   mealPlan: varchar("meal_plan", { length: 10 }).notNull().default("EP"), // EP, CP, MAP, AP
   priceQuoted: decimal("price_quoted", { precision: 10, scale: 2 }),
