@@ -1881,21 +1881,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Room availability checking - SIMPLIFIED
+  // Room availability checking - ULTRA SIMPLIFIED
   app.get("/api/rooms/availability", isAuthenticated, async (req, res) => {
+    console.log("🟢🟢🟢 NEW SIMPLIFIED CODE IS RUNNING 🟢🟢🟢");
     try {
       const { propertyId } = req.query;
+      console.log("propertyId from query:", propertyId);
       
       if (!propertyId) {
+        console.log("❌ No propertyId provided");
         return res.status(400).json({ message: "propertyId is required" });
       }
 
       const parsedPropertyId = parseInt(propertyId as string);
+      console.log("Parsed propertyId:", parsedPropertyId);
       
       if (isNaN(parsedPropertyId)) {
+        console.log("❌ Invalid propertyId");
         return res.status(400).json({ message: "Invalid propertyId" });
       }
       
+      console.log("✓ About to query database for rooms...");
       // Just return all rooms for this property (simplified)
       const { rooms } = await import("@shared/schema");
       const allRooms = await db
@@ -1903,9 +1909,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(rooms)
         .where(eq(rooms.propertyId, parsedPropertyId));
       
+      console.log("✓✓✓ SUCCESS! Found rooms:", allRooms.length);
       res.json(allRooms);
     } catch (error: any) {
-      console.error('Availability error:', error.message);
+      console.error('❌❌❌ Availability error:', error.message);
+      console.error('Full error:', error);
       res.status(500).json({ message: error.message });
     }
   });
