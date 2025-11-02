@@ -336,10 +336,11 @@ export default function MenuManagement() {
                       <FormLabel>Price (₹) *</FormLabel>
                       <FormControl>
                         <Input
-                          {...field}
                           type="number"
                           step="0.01"
                           placeholder="e.g., 250.00"
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
                           data-testid="input-price"
                         />
                       </FormControl>
@@ -374,9 +375,10 @@ export default function MenuManagement() {
                       <FormLabel>Preparation Time (minutes)</FormLabel>
                       <FormControl>
                         <Input
-                          {...field}
                           type="number"
                           placeholder="e.g., 15"
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
                           data-testid="input-prep-time"
                         />
                       </FormControl>
