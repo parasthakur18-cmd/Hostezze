@@ -1,15 +1,38 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, DollarSign, TrendingUp, Users } from "lucide-react";
 import { format } from "date-fns";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { StaffSalary, SalaryAdvance } from "@shared/schema";
+
+const salaryFormSchema = z.object({
+  userId: z.string().min(1, "User is required"),
+  staffName: z.string().min(1, "Staff name is required"),
+  propertyId: z.number().optional(),
+  grossSalary: z.string().min(1, "Gross salary is required"),
+  deductions: z.string().optional(),
+  netSalary: z.string().min(1, "Net salary is required"),
+  periodStart: z.string().min(1, "Period start is required"),
+  periodEnd: z.string().min(1, "Period end is required"),
+  status: z.enum(["pending", "paid"]).default("pending"),
+});
 
 export default function SalariesPage() {
   const [activeTab, setActiveTab] = useState("salaries");
+  const [isSalaryDialogOpen, setIsSalaryDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const { data: salaries = [], isLoading: salariesLoading } = useQuery<StaffSalary[]>({
     queryKey: ["/api/salaries"],
@@ -19,9 +42,55 @@ export default function SalariesPage() {
     queryKey: ["/api/advances"],
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
   });
+
+  const { data: properties = [] } = useQuery<any[]>({
+    queryKey: ["/api/properties"],
+  });
+
+  const salaryForm = useForm<z.infer<typeof salaryFormSchema>>({
+    resolver: zodResolver(salaryFormSchema),
+    defaultValues: {
+      userId: "",
+      staffName: "",
+      grossSalary: "",
+      deductions: "0",
+      netSalary: "",
+      periodStart: "",
+      periodEnd: "",
+      status: "pending",
+    },
+  });
+
+  const createSalaryMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof salaryFormSchema>) => {
+      return await apiRequest("POST", "/api/salaries", {
+        ...data,
+        grossSalary: parseFloat(data.grossSalary),
+        deductions: parseFloat(data.deductions || "0"),
+        netSalary: parseFloat(data.netSalary),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/salaries"] });
+      toast({ title: "Success", description: "Salary record created successfully" });
+      setIsSalaryDialogOpen(false);
+      salaryForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to create salary record", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleCreateSalary = (data: z.infer<typeof salaryFormSchema>) => {
+    createSalaryMutation.mutate(data);
+  };
 
   const totalSalaryAmount = salaries.reduce(
     (sum, s) => sum + parseFloat(s.netSalary || "0"),
@@ -116,7 +185,10 @@ export default function SalariesPage() {
               Advances
             </TabsTrigger>
           </TabsList>
-          <Button data-testid="button-add-salary">
+          <Button 
+            onClick={() => setIsSalaryDialogOpen(true)}
+            data-testid="button-add-salary"
+          >
             <Plus className="mr-2 h-4 w-4" />
             {activeTab === "salaries" ? "Add Salary" : "Add Advance"}
           </Button>
@@ -288,6 +360,228 @@ export default function SalariesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isSalaryDialogOpen} onOpenChange={setIsSalaryDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New Salary Record</DialogTitle>
+          </DialogHeader>
+          <Form {...salaryForm}>
+            <form onSubmit={salaryForm.handleSubmit(handleCreateSalary)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={salaryForm.control}
+                  name="userId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>User</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-user">
+                            <SelectValue placeholder="Select user" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {users.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="staffName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Staff Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="John Doe" data-testid="input-staff-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="propertyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Property (Optional)</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)} 
+                        value={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-property">
+                            <SelectValue placeholder="Select property" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {properties.map((property: any) => (
+                            <SelectItem key={property.id} value={property.id.toString()}>
+                              {property.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="grossSalary"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gross Salary</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number" 
+                          placeholder="50000" 
+                          data-testid="input-gross-salary"
+                          onChange={(e) => {
+                            field.onChange(e.target.value);
+                            const gross = parseFloat(e.target.value) || 0;
+                            const deductions = parseFloat(salaryForm.getValues("deductions") || "0");
+                            salaryForm.setValue("netSalary", (gross - deductions).toString());
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="deductions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deductions</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number" 
+                          placeholder="5000" 
+                          data-testid="input-deductions"
+                          onChange={(e) => {
+                            field.onChange(e.target.value);
+                            const gross = parseFloat(salaryForm.getValues("grossSalary") || "0");
+                            const deductions = parseFloat(e.target.value) || 0;
+                            salaryForm.setValue("netSalary", (gross - deductions).toString());
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="netSalary"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Net Salary</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="number" 
+                          placeholder="45000" 
+                          data-testid="input-net-salary"
+                          readOnly
+                          className="bg-muted"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="periodStart"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Period Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" data-testid="input-period-start" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="periodEnd"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Period End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" data-testid="input-period-end" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={salaryForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-status">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="paid">Paid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsSalaryDialogOpen(false);
+                    salaryForm.reset();
+                  }}
+                  data-testid="button-cancel-salary"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createSalaryMutation.isPending}
+                  data-testid="button-submit-salary"
+                >
+                  {createSalaryMutation.isPending ? "Creating..." : "Create Salary"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
