@@ -1886,12 +1886,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { propertyId, checkIn, checkOut } = req.query;
       
+      console.log('=== ROOM AVAILABILITY REQUEST ===');
+      console.log('Raw query params:', req.query);
+      console.log('propertyId type:', typeof propertyId, 'value:', propertyId);
+      console.log('checkIn type:', typeof checkIn, 'value:', checkIn);
+      console.log('checkOut type:', typeof checkOut, 'value:', checkOut);
+      
       if (!propertyId || !checkIn || !checkOut) {
+        console.error('Missing required params');
         return res.status(400).json({ message: "propertyId, checkIn, and checkOut are required" });
       }
 
-      console.log('=== ROOM AVAILABILITY REQUEST ===');
-      console.log('Query params:', { propertyId, checkIn, checkOut });
+      const parsedPropertyId = parseInt(propertyId as string);
+      console.log('Parsed propertyId:', parsedPropertyId, 'isNaN:', isNaN(parsedPropertyId));
+      
+      if (isNaN(parsedPropertyId)) {
+        console.error('Invalid propertyId - not a number');
+        return res.status(400).json({ message: "propertyId must be a valid number" });
+      }
       
       const checkInDate = new Date(checkIn as string);
       const checkOutDate = new Date(checkOut as string);
@@ -1901,7 +1913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const availableRooms = await storage.getAvailableRoomsForDates(
-        parseInt(propertyId as string),
+        parsedPropertyId,
         checkInDate,
         checkOutDate
       );
@@ -1912,6 +1924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('=== ROOM AVAILABILITY ERROR ===');
       console.error('Error message:', error.message);
       console.error('Error name:', error.name);
+      console.error('Error stack:', error.stack);
       console.error('Full error:', JSON.stringify(error, null, 2));
       console.error('Stack trace:', error.stack);
       res.status(500).json({ message: error.message });
