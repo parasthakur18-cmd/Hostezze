@@ -131,74 +131,15 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 md:p-8">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold font-serif mb-2">Dashboard</h1>
         <p className="text-muted-foreground">
           Welcome back! Here's an overview of your property management system.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title} className="hover-elevate">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bgColor}`}>
-                  <Icon className={`h-5 w-5 ${stat.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold font-mono" data-testid={`stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                  {stat.value}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-chart-5" />
-              Occupancy Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold font-mono mb-2" data-testid="stat-occupancy-rate">
-              {stats?.occupancyRate || 0}%
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Current occupancy across all properties
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <IndianRupee className="h-5 w-5 text-chart-4" />
-              Revenue This Month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold font-mono mb-2" data-testid="stat-monthly-revenue">
-              ₹{stats?.monthlyRevenue?.toLocaleString() || "0"}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Total revenue generated this month
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Daily Operations Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      {/* Daily Operations Tabs - Moved to top */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="mb-6">
           <TabsTrigger value="today-checkins" data-testid="tab-today-checkins">
             <LogIn className="h-4 w-4 mr-2" />
@@ -237,7 +178,6 @@ export default function Dashboard() {
                 const room = rooms?.find(r => r.id === booking.roomId);
                 const property = properties?.find(p => p.id === booking.propertyId);
                 
-                // For group bookings, get all rooms
                 const groupRooms = booking.isGroupBooking && booking.roomIds
                   ? rooms?.filter((r) => booking.roomIds?.includes(r.id)) || []
                   : [];
@@ -319,7 +259,6 @@ export default function Dashboard() {
                 const room = rooms?.find(r => r.id === booking.roomId);
                 const property = properties?.find(p => p.id === booking.propertyId);
                 
-                // For group bookings, get all rooms
                 const groupRooms = booking.isGroupBooking && booking.roomIds
                   ? rooms?.filter((r) => booking.roomIds?.includes(r.id)) || []
                   : [];
@@ -470,7 +409,6 @@ export default function Dashboard() {
                 const room = rooms?.find(r => r.id === booking.roomId);
                 const property = properties?.find(p => p.id === booking.propertyId);
                 
-                // For group bookings, get all rooms
                 const groupRooms = booking.isGroupBooking && booking.roomIds
                   ? rooms?.filter((r) => booking.roomIds?.includes(r.id)) || []
                   : [];
@@ -521,8 +459,8 @@ export default function Dashboard() {
                           <p className="font-medium">{booking.numberOfGuests}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground mb-1">Advance</p>
-                          <p className="font-medium font-mono">₹{booking.advanceAmount || 0}</p>
+                          <p className="text-muted-foreground mb-1">Total</p>
+                          <p className="font-medium font-mono">₹{booking.totalAmount}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -530,14 +468,73 @@ export default function Dashboard() {
                 );
               })}
               {bookings.length > 10 && (
-                <p className="text-center text-sm text-muted-foreground py-4">
-                  Showing 10 of {bookings.length} bookings. Visit the Bookings page to see all.
+                <p className="text-center text-sm text-muted-foreground">
+                  Showing 10 of {bookings.length} bookings. View all in the Bookings page.
                 </p>
               )}
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {statCards.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.title} className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bgColor}`}>
+                  <Icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-mono" data-testid={`stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                  {stat.value}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-chart-5" />
+              Occupancy Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold font-mono mb-2" data-testid="stat-occupancy-rate">
+              {stats?.occupancyRate || 0}%
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Current occupancy across all properties
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <IndianRupee className="h-5 w-5 text-chart-4" />
+              Revenue This Month
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold font-mono mb-2" data-testid="stat-monthly-revenue">
+              ₹{stats?.monthlyRevenue?.toLocaleString() || "0"}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Total revenue generated this month
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
