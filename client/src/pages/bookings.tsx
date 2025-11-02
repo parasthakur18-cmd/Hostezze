@@ -76,10 +76,12 @@ export default function Bookings() {
       checkInDate: new Date(),
       checkOutDate: new Date(),
       status: "pending",
-      numberOfGuests: 1,
+      numberOfGuests: "" as any,
       customPrice: null,
       advanceAmount: "0",
       specialRequests: "",
+      source: "walk-in",
+      mealPlan: "EP",
     },
   });
 
@@ -656,8 +658,9 @@ export default function Bookings() {
                         <Input
                           type="number"
                           min="1"
-                          value={field.value || 1}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          placeholder="1"
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : "")}
                           data-testid="input-booking-guests"
                         />
                       </FormControl>
@@ -695,7 +698,7 @@ export default function Bookings() {
                     name="advanceAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Advance Payment</FormLabel>
+                        <FormLabel>Advance Payment (₹)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -703,7 +706,7 @@ export default function Bookings() {
                             step="0.01"
                             placeholder="0"
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value ? e.target.value : "0")}
+                            onChange={(e) => field.onChange(e.target.value || "0")}
                             data-testid="input-booking-advance"
                           />
                         </FormControl>
