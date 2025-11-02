@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Edit,
   X,
+  Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -356,6 +357,7 @@ export default function Enquiries() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [customMessage, setCustomMessage] = useState("");
   const [messageChannel, setMessageChannel] = useState<"sms" | "whatsapp">("sms");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const { data: enquiries, isLoading } = useQuery<Enquiry[]>({
     queryKey: ["/api/enquiries"],
@@ -519,6 +521,18 @@ export default function Enquiries() {
     );
   };
 
+  // Filter enquiries based on search query
+  const filteredEnquiries = enquiries?.filter((enquiry) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      enquiry.guestName.toLowerCase().includes(query) ||
+      enquiry.guestPhone.toLowerCase().includes(query) ||
+      (enquiry.guestEmail && enquiry.guestEmail.toLowerCase().includes(query))
+    );
+  }) || [];
+
   if (isLoading) {
     return (
       <div className="container mx-auto p-6">
@@ -618,6 +632,26 @@ export default function Enquiries() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Search Input */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search by guest name, phone, or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-enquiries"
+                  />
+                </div>
+                {searchQuery && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Found {filteredEnquiries.length} result{filteredEnquiries.length !== 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -632,7 +666,14 @@ export default function Enquiries() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {enquiries.map((enquiry) => (
+                    {filteredEnquiries.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          {searchQuery ? "No enquiries found matching your search" : "No enquiries yet"}
+                        </TableCell>
+                      </TableRow>
+                    ) : 
+                      filteredEnquiries.map((enquiry) => (
                       <TableRow key={enquiry.id} data-testid={`row-enquiry-${enquiry.id}`}>
                         <TableCell>
                           <div className="flex items-center gap-2">
