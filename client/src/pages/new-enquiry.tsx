@@ -128,29 +128,31 @@ export default function NewEnquiry() {
 
     setLoadingRooms(true);
     try {
-      const response = await fetch(
-        `/api/rooms/availability?propertyId=${propertyId}&checkIn=${checkIn.toISOString()}&checkOut=${checkOut.toISOString()}`
-      );
-      if (!response.ok) throw new Error("Failed to check availability");
-      const rooms = await response.json();
-      setAvailableRooms(rooms);
+      // Simplified: Just fetch all rooms for the property
+      const response = await fetch(`/api/rooms`);
+      if (!response.ok) throw new Error("Failed to fetch rooms");
+      const allRooms = await response.json();
+      
+      // Filter by propertyId
+      const propertyRooms = allRooms.filter((r: Room) => r.propertyId === propertyId);
+      setAvailableRooms(propertyRooms);
 
-      if (rooms.length === 0) {
+      if (propertyRooms.length === 0) {
         toast({
           title: "No Rooms Available",
-          description: "No rooms are available for the selected dates at this property.",
+          description: "No rooms found for this property.",
           variant: "destructive",
         });
       } else {
         toast({
           title: "Rooms Found",
-          description: `${rooms.length} room(s) available for the selected dates.`,
+          description: `${propertyRooms.length} room(s) available.`,
         });
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to check room availability",
+        description: "Failed to load rooms",
         variant: "destructive",
       });
       setAvailableRooms([]);
