@@ -1605,7 +1605,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/enquiries/:id", isAuthenticated, async (req, res) => {
     try {
-      const updateSchema = insertEnquirySchema.omit({ status: true }).partial();
+      const updateSchema = z.object({
+        propertyId: z.number().optional(),
+        guestName: z.string().min(2).optional(),
+        guestPhone: z.string().min(10).optional(),
+        guestEmail: z.string().email().optional().or(z.literal("")).nullable(),
+        checkInDate: z.coerce.date().optional(),
+        checkOutDate: z.coerce.date().optional(),
+        roomId: z.number().optional().nullable(),
+        roomIds: z.array(z.number()).optional().nullable(),
+        isGroupEnquiry: z.boolean().optional(),
+        bedsBooked: z.number().optional().nullable(),
+        numberOfGuests: z.number().optional(),
+        mealPlan: z.enum(["EP", "CP", "MAP", "AP"]).optional(),
+        priceQuoted: z.coerce.number().optional().nullable().transform(val => val !== null && val !== undefined ? val.toString() : null),
+        advanceAmount: z.coerce.number().optional().nullable().transform(val => val !== null && val !== undefined ? val.toString() : null),
+        specialRequests: z.string().optional().nullable(),
+      });
       const data = updateSchema.parse(req.body);
       const enquiry = await storage.updateEnquiry(parseInt(req.params.id), data);
       if (!enquiry) {
@@ -1614,6 +1630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(enquiry);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
+        console.error("Enquiry update validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       res.status(500).json({ message: error.message });
