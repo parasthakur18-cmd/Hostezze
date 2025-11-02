@@ -6,6 +6,7 @@ import {
   insertPropertySchema,
   insertRoomSchema,
   insertGuestSchema,
+  insertTravelAgentSchema,
   insertBookingSchema,
   insertMenuItemSchema,
   insertOrderSchema,
@@ -576,6 +577,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/guests/:id", isAuthenticated, async (req, res) => {
     try {
       await storage.deleteGuest(parseInt(req.params.id));
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Travel Agents
+  app.get("/api/travel-agents", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      const { propertyId } = req.query;
+      let agents = propertyId 
+        ? await storage.getTravelAgentsByProperty(parseInt(propertyId as string))
+        : await storage.getAllTravelAgents();
+      
+      // Apply property filtering for managers and kitchen users
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && currentUser.assignedPropertyIds && currentUser.assignedPropertyIds.length > 0) {
+        agents = agents.filter(agent => currentUser.assignedPropertyIds!.includes(agent.propertyId));
+      }
+      
+      res.json(agents);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/travel-agents/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      const agent = await storage.getTravelAgent(parseInt(req.params.id));
+      if (!agent) {
+        return res.status(404).json({ message: "Travel agent not found" });
+      }
+
+      // Check authorization for managers/kitchen
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && 
+          currentUser.assignedPropertyIds && 
+          !currentUser.assignedPropertyIds.includes(agent.propertyId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(agent);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/travel-agents", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      const data = insertTravelAgentSchema.parse(req.body);
+
+      // Check authorization for managers/kitchen - can only create for assigned properties
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && 
+          currentUser.assignedPropertyIds && 
+          !currentUser.assignedPropertyIds.includes(data.propertyId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const agent = await storage.createTravelAgent(data);
+      res.status(201).json(agent);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/travel-agents/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      // Get existing agent to check property ownership
+      const existingAgent = await storage.getTravelAgent(parseInt(req.params.id));
+      if (!existingAgent) {
+        return res.status(404).json({ message: "Travel agent not found" });
+      }
+
+      // Check authorization for managers/kitchen
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && 
+          currentUser.assignedPropertyIds && 
+          !currentUser.assignedPropertyIds.includes(existingAgent.propertyId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const agent = await storage.updateTravelAgent(parseInt(req.params.id), req.body);
+      res.json(agent);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/travel-agents/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "User not found" });
+      }
+
+      // Get existing agent to check property ownership
+      const existingAgent = await storage.getTravelAgent(parseInt(req.params.id));
+      if (!existingAgent) {
+        return res.status(404).json({ message: "Travel agent not found" });
+      }
+
+      // Check authorization for managers/kitchen
+      if ((currentUser.role === 'manager' || currentUser.role === 'kitchen') && 
+          currentUser.assignedPropertyIds && 
+          !currentUser.assignedPropertyIds.includes(existingAgent.propertyId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteTravelAgent(parseInt(req.params.id));
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ message: error.message });
