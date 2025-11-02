@@ -52,9 +52,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Enquiry, MessageTemplate, Room } from "@shared/schema";
+import type { Enquiry, MessageTemplate, Room, Property } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -319,6 +320,7 @@ function EditEnquiryForm({ enquiry, rooms, onSuccess, onCancel }: EditEnquiryFor
 
 export default function Enquiries() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -509,12 +511,10 @@ export default function Enquiries() {
             Manage and track customer booking enquiries
           </p>
         </div>
-        <Link href="/new-enquiry">
-          <Button data-testid="button-new-enquiry">
-            <MessageSquarePlus className="h-5 w-5 mr-2" />
-            New Enquiry
-          </Button>
-        </Link>
+        <Button onClick={() => navigate("/new-enquiry")} data-testid="button-new-enquiry">
+          <MessageSquarePlus className="h-5 w-5 mr-2" />
+          New Enquiry
+        </Button>
       </div>
 
       {!enquiries || enquiries.length === 0 ? (
