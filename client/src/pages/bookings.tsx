@@ -640,7 +640,7 @@ export default function Bookings() {
                         <FormControl>
                           <Input
                             type="datetime-local"
-                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
+                            value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().slice(0, 16) : ""}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             data-testid="input-booking-checkin"
                           />
@@ -658,7 +658,7 @@ export default function Bookings() {
                         <FormControl>
                           <Input
                             type="datetime-local"
-                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
+                            value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().slice(0, 16) : ""}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                             data-testid="input-booking-checkout"
                           />
