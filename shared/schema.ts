@@ -33,7 +33,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 20 }).notNull().default("staff"),
-  assignedPropertyId: integer("assigned_property_id"),
+  assignedPropertyIds: integer("assigned_property_ids").array(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -44,7 +44,7 @@ export type User = typeof users.$inferSelect;
 // User role update schema
 export const updateUserRoleSchema = z.object({
   role: z.enum(["admin", "manager", "staff", "kitchen"]),
-  assignedPropertyId: z.number().int().nullable().optional(),
+  assignedPropertyIds: z.array(z.number().int()).nullable().optional(),
 });
 
 export type UpdateUserRole = z.infer<typeof updateUserRoleSchema>;
