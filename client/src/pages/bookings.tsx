@@ -19,6 +19,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertBookingSchema, type InsertBooking, type Booking, type Property, type Guest, type Room } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 
 const statusColors = {
@@ -1362,6 +1364,8 @@ function CheckoutBillSummary({
   onClose: () => void;
 }) {
   const { toast } = useToast();
+  const [includeGst, setIncludeGst] = useState<boolean>(false); // Default OFF (0%)
+  const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(false); // Default OFF (0%)
 
   // Fetch booking details
   const { data: bookings } = useQuery<Booking[]>({
@@ -1438,10 +1442,12 @@ function CheckoutBillSummary({
   const extraCharges = bookingExtras.reduce((sum, extra) => sum + parseFloat(extra.amount || "0"), 0);
 
   const subtotal = roomCharges + foodCharges + extraCharges;
-  const gstRate = 18;
-  const gstAmount = (subtotal * gstRate) / 100;
+  
+  // Only apply GST/Service Charge if checkboxes are checked (default OFF)
+  const gstRate = 5; // Changed from 18% to 5% to match active bookings
+  const gstAmount = includeGst ? (subtotal * gstRate) / 100 : 0;
   const serviceChargeRate = 10;
-  const serviceChargeAmount = (subtotal * serviceChargeRate) / 100;
+  const serviceChargeAmount = includeServiceCharge ? (subtotal * serviceChargeRate) / 100 : 0;
   const totalAmount = subtotal + gstAmount + serviceChargeAmount;
 
   const advancePaid = parseFloat(booking.advanceAmount || "0");
@@ -1451,6 +1457,8 @@ function CheckoutBillSummary({
     checkoutMutation.mutate({
       bookingId,
       paymentMethod,
+      includeGst,
+      includeServiceCharge,
     });
   };
 
@@ -1506,15 +1514,19 @@ function CheckoutBillSummary({
             </div>
           </div>
 
-          <div className="flex justify-between text-sm">
-            <span>GST ({gstRate}%)</span>
-            <span className="font-mono">₹{gstAmount.toFixed(2)}</span>
-          </div>
+          {includeGst && (
+            <div className="flex justify-between text-sm">
+              <span>GST ({gstRate}%)</span>
+              <span className="font-mono">₹{gstAmount.toFixed(2)}</span>
+            </div>
+          )}
 
-          <div className="flex justify-between text-sm">
-            <span>Service Charge ({serviceChargeRate}%)</span>
-            <span className="font-mono">₹{serviceChargeAmount.toFixed(2)}</span>
-          </div>
+          {includeServiceCharge && (
+            <div className="flex justify-between text-sm">
+              <span>Service Charge ({serviceChargeRate}%)</span>
+              <span className="font-mono">₹{serviceChargeAmount.toFixed(2)}</span>
+            </div>
+          )}
 
           <div className="border-t pt-2 mt-2">
             <div className="flex justify-between font-semibold">
@@ -1535,6 +1547,35 @@ function CheckoutBillSummary({
               <span>Balance Due</span>
               <span className="font-mono text-primary" data-testid="text-checkout-balance">₹{balanceAmount.toFixed(2)}</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tax & Charge Options */}
+      <div className="border rounded-lg p-4 space-y-3">
+        <h4 className="font-semibold text-sm">Additional Charges (Optional)</h4>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="include-gst"
+              checked={includeGst}
+              onCheckedChange={(checked) => setIncludeGst(checked as boolean)}
+              data-testid="checkbox-include-gst"
+            />
+            <Label htmlFor="include-gst" className="cursor-pointer font-normal">
+              Include GST (5%)
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="include-service-charge"
+              checked={includeServiceCharge}
+              onCheckedChange={(checked) => setIncludeServiceCharge(checked as boolean)}
+              data-testid="checkbox-include-service-charge"
+            />
+            <Label htmlFor="include-service-charge" className="cursor-pointer font-normal">
+              Include Service Charge (10%)
+            </Label>
           </div>
         </div>
       </div>
