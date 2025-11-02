@@ -77,6 +77,7 @@ export default function NewEnquiry() {
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [checkInPopoverOpen, setCheckInPopoverOpen] = useState(false);
   const [checkOutPopoverOpen, setCheckOutPopoverOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   const { data: properties } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
@@ -366,7 +367,17 @@ export default function NewEnquiry() {
                         </div>
                       ) : (
                         <Select
-                          onValueChange={(value) => field.onChange(value ? parseInt(value) : "")}
+                          onValueChange={(value) => {
+                            const roomId = value ? parseInt(value) : "";
+                            field.onChange(roomId);
+                            const room = availableRooms.find(r => r.id === parseInt(value));
+                            setSelectedRoom(room || null);
+                            
+                            // For dormitory rooms, set numberOfGuests to 1 bed by default
+                            if (room?.roomType === "Dormitory") {
+                              form.setValue("numberOfGuests", 1);
+                            }
+                          }}
                           value={field.value ? field.value.toString() : ""}
                         >
                           <FormControl>
@@ -380,8 +391,10 @@ export default function NewEnquiry() {
                                 key={room.id}
                                 value={room.id.toString()}
                               >
-                                Room {room.roomNumber} - {room.roomType} (₹
-                                {room.pricePerNight}/night)
+                                Room {room.roomNumber} - {room.roomType}
+                                {room.roomType === "Dormitory" && room.bedCount 
+                                  ? ` (${room.bedCount} beds available)` 
+                                  : ` (₹${room.pricePerNight}/night)`}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -466,16 +479,29 @@ export default function NewEnquiry() {
                   name="numberOfGuests"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Number of Guests *</FormLabel>
+                      <FormLabel>
+                        {selectedRoom?.roomType === "Dormitory" ? "Number of Beds *" : "Number of Guests *"}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           min="1"
+                          max={selectedRoom?.roomType === "Dormitory" && selectedRoom.bedCount ? selectedRoom.bedCount : undefined}
                           placeholder="1"
                           data-testid="input-number-guests"
                           {...field}
                         />
                       </FormControl>
+                      {selectedRoom?.roomType === "Dormitory" && selectedRoom.bedCount && (
+                        <p className="text-xs text-muted-foreground">
+                          Maximum {selectedRoom.bedCount} beds available in this dormitory
+                        </p>
+                      )}
+                      {selectedRoom?.roomType === "Dormitory" && (
+                        <p className="text-xs text-muted-foreground">
+                          Price: ₹{selectedRoom.pricePerNight}/bed/night
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
