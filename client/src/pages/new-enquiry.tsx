@@ -41,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Room, Property } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "wouter";
 
 const enquiryFormSchema = z.object({
   propertyId: z.coerce.number().int().min(1, "Please select a property"),
@@ -67,6 +68,7 @@ type EnquiryFormData = z.infer<typeof enquiryFormSchema>;
 
 export default function NewEnquiry() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [checkInDate, setCheckInDate] = useState<Date>();
   const [checkOutDate, setCheckOutDate] = useState<Date>();
   const [selectedPropertyId, setSelectedPropertyId] = useState<number>();
@@ -102,12 +104,12 @@ export default function NewEnquiry() {
       queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
       toast({
         title: "Enquiry Created!",
-        description: "The enquiry has been saved successfully.",
+        description: "The enquiry has been saved successfully. Redirecting to enquiries page...",
       });
-      form.reset();
-      setCheckInDate(undefined);
-      setCheckOutDate(undefined);
-      setAvailableRooms([]);
+      
+      setTimeout(() => {
+        navigate("/enquiries");
+      }, 1500);
     },
     onError: (error: any) => {
       toast({
