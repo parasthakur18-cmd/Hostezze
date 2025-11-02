@@ -16,6 +16,9 @@ import {
   propertyExpenses,
   expenseCategories,
   bankTransactions,
+  staffSalaries,
+  salaryAdvances,
+  salaryPayments,
   type User,
   type UpsertUser,
   type Property,
@@ -50,6 +53,12 @@ import {
   type InsertExpenseCategory,
   type BankTransaction,
   type InsertBankTransaction,
+  type StaffSalary,
+  type InsertStaffSalary,
+  type SalaryAdvance,
+  type InsertSalaryAdvance,
+  type SalaryPayment,
+  type InsertSalaryPayment,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, lt, gt, sql, or, inArray } from "drizzle-orm";
@@ -190,6 +199,28 @@ export interface IStorage {
 
   // Financial Reports
   getPropertyFinancials(propertyId: number, startDate?: Date, endDate?: Date): Promise<any>;
+
+  // Staff Salary operations
+  getAllSalaries(): Promise<StaffSalary[]>;
+  getSalariesByUser(userId: string): Promise<StaffSalary[]>;
+  getSalariesByProperty(propertyId: number): Promise<StaffSalary[]>;
+  getSalary(id: number): Promise<StaffSalary | undefined>;
+  createSalary(salary: InsertStaffSalary): Promise<StaffSalary>;
+  updateSalary(id: number, salary: Partial<InsertStaffSalary>): Promise<StaffSalary>;
+  deleteSalary(id: number): Promise<void>;
+
+  // Salary Advance operations
+  getAllAdvances(): Promise<SalaryAdvance[]>;
+  getAdvancesByUser(userId: string): Promise<SalaryAdvance[]>;
+  getAdvance(id: number): Promise<SalaryAdvance | undefined>;
+  createAdvance(advance: InsertSalaryAdvance): Promise<SalaryAdvance>;
+  updateAdvance(id: number, advance: Partial<InsertSalaryAdvance>): Promise<SalaryAdvance>;
+  deleteAdvance(id: number): Promise<void>;
+
+  // Salary Payment operations
+  getPaymentsBySalary(salaryId: number): Promise<SalaryPayment[]>;
+  createSalaryPayment(payment: InsertSalaryPayment): Promise<SalaryPayment>;
+  deleteSalaryPayment(id: number): Promise<void>;
 
   // Dashboard stats
   getDashboardStats(propertyId?: number): Promise<any>;
@@ -1432,6 +1463,112 @@ export class DatabaseStorage implements IStorage {
       monthlyRevenue: parseFloat(monthlyRevenueResult.total),
       popularRoomTypes,
     };
+  }
+
+  // Staff Salary operations
+  async getAllSalaries(): Promise<StaffSalary[]> {
+    return await db.select().from(staffSalaries).orderBy(desc(staffSalaries.createdAt));
+  }
+
+  async getSalariesByUser(userId: string): Promise<StaffSalary[]> {
+    return await db
+      .select()
+      .from(staffSalaries)
+      .where(eq(staffSalaries.userId, userId))
+      .orderBy(desc(staffSalaries.periodStart));
+  }
+
+  async getSalariesByProperty(propertyId: number): Promise<StaffSalary[]> {
+    return await db
+      .select()
+      .from(staffSalaries)
+      .where(eq(staffSalaries.propertyId, propertyId))
+      .orderBy(desc(staffSalaries.periodStart));
+  }
+
+  async getSalary(id: number): Promise<StaffSalary | undefined> {
+    const [salary] = await db.select().from(staffSalaries).where(eq(staffSalaries.id, id));
+    return salary;
+  }
+
+  async createSalary(salary: InsertStaffSalary): Promise<StaffSalary> {
+    const [created] = await db.insert(staffSalaries).values(salary).returning();
+    eventBus.emit('salary:created', created);
+    return created;
+  }
+
+  async updateSalary(id: number, salary: Partial<InsertStaffSalary>): Promise<StaffSalary> {
+    const [updated] = await db
+      .update(staffSalaries)
+      .set({ ...salary, updatedAt: new Date() })
+      .where(eq(staffSalaries.id, id))
+      .returning();
+    eventBus.emit('salary:updated', updated);
+    return updated;
+  }
+
+  async deleteSalary(id: number): Promise<void> {
+    await db.delete(staffSalaries).where(eq(staffSalaries.id, id));
+    eventBus.emit('salary:deleted', { id });
+  }
+
+  // Salary Advance operations
+  async getAllAdvances(): Promise<SalaryAdvance[]> {
+    return await db.select().from(salaryAdvances).orderBy(desc(salaryAdvances.createdAt));
+  }
+
+  async getAdvancesByUser(userId: string): Promise<SalaryAdvance[]> {
+    return await db
+      .select()
+      .from(salaryAdvances)
+      .where(eq(salaryAdvances.userId, userId))
+      .orderBy(desc(salaryAdvances.advanceDate));
+  }
+
+  async getAdvance(id: number): Promise<SalaryAdvance | undefined> {
+    const [advance] = await db.select().from(salaryAdvances).where(eq(salaryAdvances.id, id));
+    return advance;
+  }
+
+  async createAdvance(advance: InsertSalaryAdvance): Promise<SalaryAdvance> {
+    const [created] = await db.insert(salaryAdvances).values(advance).returning();
+    eventBus.emit('advance:created', created);
+    return created;
+  }
+
+  async updateAdvance(id: number, advance: Partial<InsertSalaryAdvance>): Promise<SalaryAdvance> {
+    const [updated] = await db
+      .update(salaryAdvances)
+      .set(advance)
+      .where(eq(salaryAdvances.id, id))
+      .returning();
+    eventBus.emit('advance:updated', updated);
+    return updated;
+  }
+
+  async deleteAdvance(id: number): Promise<void> {
+    await db.delete(salaryAdvances).where(eq(salaryAdvances.id, id));
+    eventBus.emit('advance:deleted', { id });
+  }
+
+  // Salary Payment operations
+  async getPaymentsBySalary(salaryId: number): Promise<SalaryPayment[]> {
+    return await db
+      .select()
+      .from(salaryPayments)
+      .where(eq(salaryPayments.salaryId, salaryId))
+      .orderBy(desc(salaryPayments.paymentDate));
+  }
+
+  async createSalaryPayment(payment: InsertSalaryPayment): Promise<SalaryPayment> {
+    const [created] = await db.insert(salaryPayments).values(payment).returning();
+    eventBus.emit('salary-payment:created', created);
+    return created;
+  }
+
+  async deleteSalaryPayment(id: number): Promise<void> {
+    await db.delete(salaryPayments).where(eq(salaryPayments.id, id));
+    eventBus.emit('salary-payment:deleted', { id });
   }
 }
 

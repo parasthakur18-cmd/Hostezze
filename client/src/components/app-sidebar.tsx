@@ -23,6 +23,7 @@ import {
   BookOpen,
   LogOut,
   QrCode,
+  DollarSign,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -62,6 +63,7 @@ const adminMenuItems = [
   { title: "Expenses", url: "/expenses", icon: FileText },
   { title: "Financials", url: "/financials", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Salaries", url: "/salaries", icon: DollarSign },
   { title: "Users", url: "/users", icon: UserCog },
   { title: "QR Codes", url: "/qr-codes", icon: QrCode },
   { title: "Settings", url: "/settings", icon: Settings },
@@ -81,6 +83,7 @@ const managerMenuItems = [
   { title: "QR Codes", url: "/qr-codes", icon: QrCode },
   { title: "Add-ons", url: "/addons", icon: Plus },
   { title: "Expenses", url: "/expenses", icon: FileText },
+  { title: "Salaries", url: "/salaries", icon: DollarSign },
 ];
 
 const staffMenuItems = [

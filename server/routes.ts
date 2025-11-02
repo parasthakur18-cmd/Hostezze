@@ -2204,6 +2204,411 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Lease Amount Editing endpoint (Admin/Manager only)
+  app.patch("/api/leases/:id/amount", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { totalAmount } = req.body;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized. Only admin/manager can edit lease amounts." });
+      }
+
+      const lease = await storage.getLease(parseInt(req.params.id));
+      if (!lease) {
+        return res.status(404).json({ message: "Lease not found" });
+      }
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (!propertyIds.includes(lease.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized. You can only edit leases for your assigned properties." });
+        }
+      }
+
+      if (!totalAmount || isNaN(parseFloat(totalAmount))) {
+        return res.status(400).json({ message: "Invalid lease amount" });
+      }
+
+      const beforeData = { totalAmount: lease.totalAmount };
+      const updated = await storage.updateLease(parseInt(req.params.id), { totalAmount });
+      const afterData = { totalAmount: updated.totalAmount };
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logUpdate(
+        "lease",
+        String(lease.id),
+        user,
+        beforeData,
+        afterData,
+        { action: "lease_amount_updated", propertyId: lease.propertyId }
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Staff Salary endpoints (Admin/Manager only)
+  app.get("/api/salaries", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { userId, propertyId } = req.query;
+
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      let salaries;
+      if (userId) {
+        salaries = await storage.getSalariesByUser(userId as string);
+      } else if (propertyId) {
+        salaries = await storage.getSalariesByProperty(parseInt(propertyId as string));
+      } else if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (propertyIds.length === 0) {
+          return res.json([]);
+        }
+        const allSalaries = await storage.getAllSalaries();
+        salaries = allSalaries.filter(s => s.propertyId && propertyIds.includes(s.propertyId));
+      } else {
+        salaries = await storage.getAllSalaries();
+      }
+
+      res.json(salaries);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/salaries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const salary = await storage.getSalary(parseInt(req.params.id));
+      if (!salary) {
+        return res.status(404).json({ message: "Salary not found" });
+      }
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (salary.propertyId && !propertyIds.includes(salary.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      }
+
+      res.json(salary);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/salaries", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { insertStaffSalarySchema } = await import("@shared/schema");
+      const validatedData = insertStaffSalarySchema.parse(req.body);
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (validatedData.propertyId && !propertyIds.includes(validatedData.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      }
+
+      const salary = await storage.createSalary(validatedData);
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logCreate(
+        "staff_salary",
+        String(salary.id),
+        user,
+        salary,
+        { action: "salary_created", propertyId: salary.propertyId }
+      );
+
+      res.status(201).json(salary);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/salaries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const existing = await storage.getSalary(parseInt(req.params.id));
+      if (!existing) {
+        return res.status(404).json({ message: "Salary not found" });
+      }
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (existing.propertyId && !propertyIds.includes(existing.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      }
+
+      const salary = await storage.updateSalary(parseInt(req.params.id), req.body);
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logUpdate(
+        "staff_salary",
+        String(existing.id),
+        user,
+        existing,
+        salary,
+        { action: "salary_updated", propertyId: salary.propertyId }
+      );
+
+      res.json(salary);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/salaries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const existing = await storage.getSalary(parseInt(req.params.id));
+      if (!existing) {
+        return res.status(404).json({ message: "Salary not found" });
+      }
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (existing.propertyId && !propertyIds.includes(existing.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      }
+
+      await storage.deleteSalary(parseInt(req.params.id));
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logDelete(
+        "staff_salary",
+        String(existing.id),
+        user,
+        existing,
+        { action: "salary_deleted", propertyId: existing.propertyId }
+      );
+
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Salary Advance endpoints
+  app.get("/api/advances", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { userId } = req.query;
+
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const advances = userId 
+        ? await storage.getAdvancesByUser(userId as string)
+        : await storage.getAllAdvances();
+      
+      res.json(advances);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/advances", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { insertSalaryAdvanceSchema } = await import("@shared/schema");
+      const validatedData = insertSalaryAdvanceSchema.parse(req.body);
+      const advance = await storage.createAdvance(validatedData);
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logCreate(
+        "salary_advance",
+        String(advance.id),
+        user,
+        advance,
+        { action: "advance_created", userId: advance.userId }
+      );
+
+      res.status(201).json(advance);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/advances/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const existing = await storage.getAdvance(parseInt(req.params.id));
+      if (!existing) {
+        return res.status(404).json({ message: "Advance not found" });
+      }
+
+      const advance = await storage.updateAdvance(parseInt(req.params.id), req.body);
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logUpdate(
+        "salary_advance",
+        String(existing.id),
+        user,
+        existing,
+        advance,
+        { action: "advance_updated", userId: advance.userId }
+      );
+
+      res.json(advance);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/advances/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const existing = await storage.getAdvance(parseInt(req.params.id));
+      if (!existing) {
+        return res.status(404).json({ message: "Advance not found" });
+      }
+
+      await storage.deleteAdvance(parseInt(req.params.id));
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logDelete(
+        "salary_advance",
+        String(existing.id),
+        user,
+        existing,
+        { action: "advance_deleted", userId: existing.userId }
+      );
+
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Salary Payment endpoints
+  app.get("/api/salaries/:salaryId/payments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const payments = await storage.getPaymentsBySalary(parseInt(req.params.salaryId));
+      res.json(payments);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/salaries/:salaryId/payments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { insertSalaryPaymentSchema } = await import("@shared/schema");
+      const validatedData = insertSalaryPaymentSchema.parse({
+        ...req.body,
+        salaryId: parseInt(req.params.salaryId),
+      });
+      const payment = await storage.createSalaryPayment(validatedData);
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logCreate(
+        "salary_payment",
+        String(payment.id),
+        user,
+        payment,
+        { action: "salary_payment_created", salaryId: payment.salaryId }
+      );
+
+      res.status(201).json(payment);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/salaries/payments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      // Note: We'd need a getSalaryPayment method to capture the before data
+      // For now, we'll log deletion without before data
+      await storage.deleteSalaryPayment(parseInt(req.params.id));
+
+      const { AuditService } = await import("./auditService");
+      await AuditService.logCustomAction(
+        "salary_payment",
+        String(req.params.id),
+        "delete",
+        user,
+        undefined,
+        { action: "salary_payment_deleted" }
+      );
+
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

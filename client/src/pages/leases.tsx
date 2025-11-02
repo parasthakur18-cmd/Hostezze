@@ -13,8 +13,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPropertyLeaseSchema, type PropertyLease, type Property } from "@shared/schema";
 import { z } from "zod";
 import { format } from "date-fns";
-import { Plus, IndianRupee, Calendar, CreditCard } from "lucide-react";
+import { Plus, IndianRupee, Calendar, CreditCard, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const leaseFormSchema = insertPropertyLeaseSchema.extend({
   totalAmount: z.string().min(1, "Amount is required"),
@@ -31,11 +32,18 @@ const paymentFormSchema = z.object({
   notes: z.string().optional(),
 });
 
+const editAmountFormSchema = z.object({
+  totalAmount: z.string().min(1, "Amount is required"),
+});
+
 export default function Leases() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLeaseDialogOpen, setIsLeaseDialogOpen] = useState(false);
   const [selectedLease, setSelectedLease] = useState<number | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isEditAmountDialogOpen, setIsEditAmountDialogOpen] = useState(false);
+  const [leaseToEdit, setLeaseToEdit] = useState<PropertyLease | null>(null);
 
   const { data: properties = [] } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
@@ -69,6 +77,13 @@ export default function Leases() {
       paymentDate: new Date().toISOString().split("T")[0],
       paymentMethod: "bank_transfer",
       notes: "",
+    },
+  });
+
+  const editAmountForm = useForm({
+    resolver: zodResolver(editAmountFormSchema),
+    defaultValues: {
+      totalAmount: "",
     },
   });
 
@@ -133,12 +148,49 @@ export default function Leases() {
     },
   });
 
+  const editAmountMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof editAmountFormSchema>) => {
+      if (!leaseToEdit) throw new Error("No lease selected");
+      const response = await apiRequest("PATCH", `/api/leases/${leaseToEdit.id}/amount`, {
+        totalAmount: data.totalAmount,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leases"] });
+      setIsEditAmountDialogOpen(false);
+      setLeaseToEdit(null);
+      editAmountForm.reset();
+      toast({
+        title: "Amount updated",
+        description: "Lease amount has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update lease amount",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateLease = (data: z.infer<typeof leaseFormSchema>) => {
     createLeaseMutation.mutate(data);
   };
 
   const handleCreatePayment = (data: z.infer<typeof paymentFormSchema>) => {
     createPaymentMutation.mutate(data);
+  };
+
+  const handleEditAmount = (data: z.infer<typeof editAmountFormSchema>) => {
+    editAmountMutation.mutate(data);
+  };
+
+  const openEditAmountDialog = (lease: PropertyLease) => {
+    setLeaseToEdit(lease);
+    editAmountForm.reset({ totalAmount: lease.totalAmount });
+    setIsEditAmountDialogOpen(true);
   };
 
   const getPropertyName = (propertyId: number) => {
@@ -358,7 +410,7 @@ export default function Leases() {
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t">
+                    <div className="pt-2 border-t space-y-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -372,6 +424,18 @@ export default function Leases() {
                         <CreditCard className="h-4 w-4 mr-2" />
                         Record Payment
                       </Button>
+                      {(user?.role === 'admin' || user?.role === 'manager') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => openEditAmountDialog(lease)}
+                          data-testid={`button-edit-amount-${lease.id}`}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Amount
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -469,6 +533,53 @@ export default function Leases() {
                   </Button>
                   <Button type="submit" disabled={createPaymentMutation.isPending} data-testid="button-submit-payment">
                     {createPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditAmountDialogOpen} onOpenChange={setIsEditAmountDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Lease Amount</DialogTitle>
+            </DialogHeader>
+            <Form {...editAmountForm}>
+              <form onSubmit={editAmountForm.handleSubmit(handleEditAmount)} className="space-y-4">
+                <FormField
+                  control={editAmountForm.control}
+                  name="totalAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Lease Amount</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="500000"
+                          data-testid="input-edit-amount"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditAmountDialogOpen(false);
+                      setLeaseToEdit(null);
+                    }}
+                    data-testid="button-cancel-edit-amount"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={editAmountMutation.isPending} data-testid="button-submit-edit-amount">
+                    {editAmountMutation.isPending ? "Updating..." : "Update Amount"}
                   </Button>
                 </div>
               </form>

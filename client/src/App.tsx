@@ -36,6 +36,7 @@ import FoodOrdersReport from "@/pages/food-orders-report";
 import MenuManagement from "@/pages/menu-management";
 import BookingAnalytics from "@/pages/booking-analytics";
 import QRCodes from "@/pages/qr-codes";
+import Salaries from "@/pages/salaries";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -82,6 +83,7 @@ function Router() {
           <Route path="/financials" component={Financials} />
           <Route path="/addons" component={AddOnServices} />
           <Route path="/analytics" component={Analytics} />
+          <Route path="/salaries" component={Salaries} />
           <Route path="/users" component={UsersManagement} />
           <Route path="/settings" component={Settings} />
         </>
