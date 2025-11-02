@@ -78,7 +78,7 @@ export default function Bookings() {
       checkInDate: new Date(),
       checkOutDate: new Date(),
       status: "pending",
-      numberOfGuests: "" as any,
+      numberOfGuests: 1,
       customPrice: null,
       advanceAmount: "0",
       specialRequests: "",
@@ -200,6 +200,11 @@ export default function Bookings() {
   });
 
   const onSubmit = async (data: any) => {
+    // Prevent double submission
+    if (createMutation.isPending) {
+      return;
+    }
+    
     console.log("onSubmit called with data:", data);
     console.log("Booking type:", bookingType);
     console.log("Selected room IDs:", selectedRoomIds);
