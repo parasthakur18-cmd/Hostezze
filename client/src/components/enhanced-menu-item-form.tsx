@@ -199,13 +199,31 @@ export function EnhancedMenuItemForm({
   const handleSubmit = async (data: MenuItemFormData) => {
     setIsSaving(true);
     try {
+      // Sanitize item data - convert empty strings to null for optional fields
       const itemData = {
         ...data,
+        actualPrice: data.actualPrice === "" ? null : data.actualPrice,
+        discountedPrice: data.discountedPrice === "" ? null : data.discountedPrice,
+        description: data.description === "" ? null : data.description,
+        imageUrl: data.imageUrl === "" ? null : data.imageUrl,
+        categoryId: data.categoryId === 0 ? null : data.categoryId,
         hasVariants: data.variants.length > 0,
         hasAddOns: data.addOns.length > 0,
         price: data.actualPrice || data.variants[0]?.actualPrice || "0",
       };
-      await onSave(itemData, data.variants, data.addOns);
+      
+      // Sanitize variants - convert empty strings to null
+      const sanitizedVariants = data.variants.map(v => ({
+        ...v,
+        discountedPrice: v.discountedPrice === "" ? null : v.discountedPrice,
+      }));
+      
+      // Sanitize add-ons (already clean, but for consistency)
+      const sanitizedAddOns = data.addOns.map(a => ({
+        ...a,
+      }));
+      
+      await onSave(itemData, sanitizedVariants, sanitizedAddOns);
       form.reset();
       setShowVariants(false);
       setShowAddOns(false);
