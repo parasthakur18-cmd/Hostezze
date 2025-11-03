@@ -426,7 +426,19 @@ export default function Menu() {
               {items
                 .filter((item) => item.isAvailable)
                 .map((item) => (
-                  <Card key={item.id} className="hover-elevate" data-testid={`card-menu-item-${item.id}`}>
+                  <Card key={item.id} className="hover-elevate overflow-hidden" data-testid={`card-menu-item-${item.id}`}>
+                    {item.imageUrl && (
+                      <div className="aspect-video w-full overflow-hidden bg-muted">
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
                     <CardHeader>
                       <CardTitle className="flex items-start justify-between gap-2">
                         <span>{item.name}</span>
