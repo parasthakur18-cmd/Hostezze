@@ -294,37 +294,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    // Try to find existing user by email first
-    if (userData.email) {
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, userData.email));
-      
-      if (existingUser) {
-        // Update existing user
-        const [updated] = await db
-          .update(users)
-          .set({
-            ...userData,
-            updatedAt: new Date(),
-          })
-          .where(eq(users.id, existingUser.id))
-          .returning();
-        return updated;
-      }
-    }
+    // Build update object with only defined fields to avoid overwriting with undefined
+    const updateFields: any = {
+      updatedAt: new Date(),
+    };
+    if (userData.email !== undefined) updateFields.email = userData.email;
+    if (userData.firstName !== undefined) updateFields.firstName = userData.firstName;
+    if (userData.lastName !== undefined) updateFields.lastName = userData.lastName;
+    if (userData.profileImageUrl !== undefined) updateFields.profileImageUrl = userData.profileImageUrl;
+    if (userData.role !== undefined) updateFields.role = userData.role;
 
-    // Insert new user if no conflict
+    // Use onConflictDoUpdate to handle both insert and update cases
     const [user] = await db
       .insert(users)
       .values(userData)
       .onConflictDoUpdate({
         target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
+        set: updateFields,
       })
       .returning();
     return user;

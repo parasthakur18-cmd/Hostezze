@@ -89,7 +89,7 @@ export default function EnhancedMenu() {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchName = item.name.toLowerCase().includes(query);
-        const matchDesc = item.description?.toLowerCase().includes(query);
+        const matchDesc = item.description ? item.description.toLowerCase().includes(query) : false;
         if (!matchName && !matchDesc) {
           return false;
         }
