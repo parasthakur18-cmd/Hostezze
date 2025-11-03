@@ -186,17 +186,47 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
 export type Booking = typeof bookings.$inferSelect;
 
-// Menu Items table
+// Menu Categories table (for organizing menu items with images and time slots)
+export const menuCategories = pgTable("menu_categories", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  propertyId: integer("property_id").notNull().references(() => properties.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 255 }).notNull(),
+  imageUrl: text("image_url"), // Category image
+  startTime: varchar("start_time", { length: 10 }), // e.g., "09:00"
+  endTime: varchar("end_time", { length: 10 }), // e.g., "11:30"
+  displayOrder: integer("display_order").notNull().default(0), // For reordering categories
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMenuCategorySchema = createInsertSchema(menuCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMenuCategory = z.infer<typeof insertMenuCategorySchema>;
+export type MenuCategory = typeof menuCategories.$inferSelect;
+
+// Menu Items table (enhanced with veg/non-veg, discounted pricing, etc.)
 export const menuItems = pgTable("menu_items", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  propertyId: integer("property_id").notNull().references(() => properties.id),
+  propertyId: integer("property_id").notNull().references(() => properties.id, { onDelete: 'cascade' }),
+  categoryId: integer("category_id").references(() => menuCategories.id, { onDelete: 'set null' }), // Link to category
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  category: varchar("category", { length: 100 }).notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  isAvailable: boolean("is_available").notNull().default(true),
-  preparationTime: integer("preparation_time"),
-  imageUrl: varchar("image_url", { length: 500 }),
+  category: varchar("category", { length: 100 }), // Legacy field, kept for backward compatibility
+  foodType: varchar("food_type", { length: 10 }).notNull().default("veg"), // "veg" or "non-veg"
+  actualPrice: decimal("actual_price", { precision: 10, scale: 2 }), // Original price
+  discountedPrice: decimal("discounted_price", { precision: 10, scale: 2 }), // Discounted price (if applicable)
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Current selling price (for backward compatibility)
+  isAvailable: boolean("is_available").notNull().default(true), // Availability toggle
+  hasVariants: boolean("has_variants").notNull().default(false), // True if item has variants
+  hasAddOns: boolean("has_add_ons").notNull().default(false), // True if item has add-ons
+  preparationTime: integer("preparation_time"), // In minutes
+  imageUrl: text("image_url"), // Item image
+  displayOrder: integer("display_order").notNull().default(0), // For reordering items within category
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -209,6 +239,47 @@ export const insertMenuItemSchema = createInsertSchema(menuItems).omit({
 
 export type InsertMenuItem = z.infer<typeof insertMenuItemSchema>;
 export type MenuItem = typeof menuItems.$inferSelect;
+
+// Menu Item Variants table (for items with multiple price options like Small/Medium/Large)
+export const menuItemVariants = pgTable("menu_item_variants", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  menuItemId: integer("menu_item_id").notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+  variantName: varchar("variant_name", { length: 255 }).notNull(), // e.g., "Aloo Paratha Combo", "Small", "Medium"
+  actualPrice: decimal("actual_price", { precision: 10, scale: 2 }).notNull(), // Original price for this variant
+  discountedPrice: decimal("discounted_price", { precision: 10, scale: 2 }), // Discounted price for this variant
+  displayOrder: integer("display_order").notNull().default(0), // For ordering variants
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMenuItemVariantSchema = createInsertSchema(menuItemVariants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMenuItemVariant = z.infer<typeof insertMenuItemVariantSchema>;
+export type MenuItemVariant = typeof menuItemVariants.$inferSelect;
+
+// Menu Item Add-Ons table (for optional extras like "Add Cheese", "Extra Coffee")
+export const menuItemAddOns = pgTable("menu_item_add_ons", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  menuItemId: integer("menu_item_id").notNull().references(() => menuItems.id, { onDelete: 'cascade' }),
+  addOnName: varchar("add_on_name", { length: 255 }).notNull(), // e.g., "Masala Tea", "Extra Cheese"
+  addOnPrice: decimal("add_on_price", { precision: 10, scale: 2 }).notNull(), // Price for this add-on
+  displayOrder: integer("display_order").notNull().default(0), // For ordering add-ons
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMenuItemAddOnSchema = createInsertSchema(menuItemAddOns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMenuItemAddOn = z.infer<typeof insertMenuItemAddOnSchema>;
+export type MenuItemAddOn = typeof menuItemAddOns.$inferSelect;
 
 // Orders table
 export const orders = pgTable("orders", {
