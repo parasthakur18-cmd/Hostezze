@@ -461,48 +461,58 @@ export default function Menu() {
         {groupedByCategory?.map(({ category, items }) => (
           <div key={category.id} className="mb-12">
             <h2 className="text-2xl font-bold font-serif mb-4">{category.name}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-3">
               {items
                 .filter((item) => item.isAvailable)
                 .map((item) => (
                   <Card key={item.id} className="hover-elevate overflow-hidden" data-testid={`card-menu-item-${item.id}`}>
-                    {item.imageUrl && (
-                      <div className="aspect-video w-full overflow-hidden bg-muted">
-                        <img 
-                          src={item.imageUrl} 
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
+                    <div className="flex gap-3 p-3">
+                      {/* Compact Image */}
+                      {item.imageUrl && (
+                        <div className="flex-shrink-0 w-20 h-20 overflow-hidden rounded-md bg-muted">
+                          <img 
+                            src={item.imageUrl} 
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Item Details */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className="font-semibold text-base leading-tight">{item.name}</h3>
+                            <Badge variant="secondary" className="font-mono flex-shrink-0">₹{item.price}</Badge>
+                          </div>
+                          {item.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
+                          )}
+                          {item.preparationTime && (
+                            <p className="text-xs text-muted-foreground">
+                              <Clock className="inline h-3 w-3 mr-1" />
+                              ~{item.preparationTime} min
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle className="flex items-start justify-between gap-2">
-                        <span>{item.name}</span>
-                        <Badge variant="secondary" className="font-mono">₹{item.price}</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {item.description && (
-                        <p className="text-sm text-muted-foreground mb-4">{item.description}</p>
-                      )}
-                      {item.preparationTime && (
-                        <p className="text-xs text-muted-foreground mb-3">
-                          <Clock className="inline h-3 w-3 mr-1" />
-                          ~{item.preparationTime} min
-                        </p>
-                      )}
-                      <Button
-                        className="w-full"
-                        onClick={() => addToCart(item)}
-                        data-testid={`button-add-to-cart-${item.id}`}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add to Cart
-                      </Button>
-                    </CardContent>
+                      
+                      {/* Add Button */}
+                      <div className="flex-shrink-0 flex items-center">
+                        <Button
+                          size="sm"
+                          onClick={() => addToCart(item)}
+                          data-testid={`button-add-to-cart-${item.id}`}
+                          className="h-8 px-3"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                    </div>
                   </Card>
                 ))}
             </div>
