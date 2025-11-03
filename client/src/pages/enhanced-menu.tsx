@@ -206,32 +206,55 @@ export default function EnhancedMenu() {
         categories={categories || []}
         properties={properties || []}
         onSave={async (itemData, variants, addOns) => {
-          if (selectedItem) {
-            await apiRequest(`/api/menu-items/${selectedItem.id}`, "PATCH", {
-              ...itemData,
-              categoryId: selectedCategory?.id || itemData.categoryId,
+          try {
+            if (selectedItem) {
+              // Update existing item
+              await apiRequest(`/api/menu-items/${selectedItem.id}`, "PATCH", {
+                ...itemData,
+                categoryId: selectedCategory?.id || itemData.categoryId,
+              });
+              
+              // Delete existing variants and add-ons, then recreate
+              await apiRequest(`/api/menu-items/${selectedItem.id}/variants`, "DELETE");
+              await apiRequest(`/api/menu-items/${selectedItem.id}/add-ons`, "DELETE");
+              
+              // Create new variants one by one
+              for (const variant of variants) {
+                await apiRequest(`/api/menu-items/${selectedItem.id}/variants`, "POST", variant);
+              }
+              
+              // Create new add-ons one by one
+              for (const addOn of addOns) {
+                await apiRequest(`/api/menu-items/${selectedItem.id}/add-ons`, "POST", addOn);
+              }
+            } else {
+              // Create new item
+              const result = await apiRequest("/api/menu-items", "POST", {
+                ...itemData,
+                categoryId: selectedCategory?.id || itemData.categoryId,
+              }) as any;
+              
+              // Create variants one by one
+              for (const variant of variants) {
+                await apiRequest(`/api/menu-items/${result.id}/variants`, "POST", variant);
+              }
+              
+              // Create add-ons one by one
+              for (const addOn of addOns) {
+                await apiRequest(`/api/menu-items/${result.id}/add-ons`, "POST", addOn);
+              }
+            }
+            queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/menu-item-variants"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/menu-item-add-ons"] });
+          } catch (error: any) {
+            toast({
+              title: "Error saving item",
+              description: error.message,
+              variant: "destructive",
             });
-            if (variants.length > 0) {
-              await apiRequest(`/api/menu-items/${selectedItem.id}/variants`, "POST", { variants });
-            }
-            if (addOns.length > 0) {
-              await apiRequest(`/api/menu-items/${selectedItem.id}/add-ons`, "POST", { addOns });
-            }
-          } else {
-            const result = await apiRequest("/api/menu-items", "POST", {
-              ...itemData,
-              categoryId: selectedCategory?.id || itemData.categoryId,
-            }) as any;
-            if (variants.length > 0) {
-              await apiRequest(`/api/menu-items/${result.id}/variants`, "POST", { variants });
-            }
-            if (addOns.length > 0) {
-              await apiRequest(`/api/menu-items/${result.id}/add-ons`, "POST", { addOns });
-            }
+            throw error;
           }
-          queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/menu-item-variants"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/menu-item-add-ons"] });
         }}
       />
     </div>

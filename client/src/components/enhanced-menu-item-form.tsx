@@ -112,25 +112,89 @@ export function EnhancedMenuItemForm({
   // Load menu item data if editing
   useEffect(() => {
     if (menuItem && open) {
+      // Fetch existing variants and add-ons
+      const loadExistingData = async () => {
+        try {
+          const [variantsResponse, addOnsResponse] = await Promise.all([
+            menuItem.hasVariants 
+              ? fetch(`/api/menu-items/${menuItem.id}/variants`).then(r => r.json())
+              : Promise.resolve([]),
+            menuItem.hasAddOns
+              ? fetch(`/api/menu-items/${menuItem.id}/add-ons`).then(r => r.json())
+              : Promise.resolve([])
+          ]);
+
+          form.reset({
+            propertyId: menuItem.propertyId,
+            categoryId: menuItem.categoryId,
+            name: menuItem.name,
+            description: menuItem.description || "",
+            foodType: (menuItem.foodType as "veg" | "non-veg") || "veg",
+            actualPrice: menuItem.actualPrice || "",
+            discountedPrice: menuItem.discountedPrice || "",
+            imageUrl: menuItem.imageUrl || "",
+            isAvailable: menuItem.isAvailable,
+            hasVariants: menuItem.hasVariants,
+            hasAddOns: menuItem.hasAddOns,
+            variants: variantsResponse.map((v: any) => ({
+              variantName: v.variantName,
+              actualPrice: v.actualPrice,
+              discountedPrice: v.discountedPrice || "",
+              displayOrder: v.displayOrder,
+            })),
+            addOns: addOnsResponse.map((a: any) => ({
+              addOnName: a.addOnName,
+              addOnPrice: a.addOnPrice,
+              displayOrder: a.displayOrder,
+            })),
+          });
+          setShowVariants(menuItem.hasVariants || variantsResponse.length > 0);
+          setShowAddOns(menuItem.hasAddOns || addOnsResponse.length > 0);
+        } catch (error) {
+          console.error("Error loading existing data:", error);
+          // Fallback to empty arrays if fetch fails
+          form.reset({
+            propertyId: menuItem.propertyId,
+            categoryId: menuItem.categoryId,
+            name: menuItem.name,
+            description: menuItem.description || "",
+            foodType: (menuItem.foodType as "veg" | "non-veg") || "veg",
+            actualPrice: menuItem.actualPrice || "",
+            discountedPrice: menuItem.discountedPrice || "",
+            imageUrl: menuItem.imageUrl || "",
+            isAvailable: menuItem.isAvailable,
+            hasVariants: menuItem.hasVariants,
+            hasAddOns: menuItem.hasAddOns,
+            variants: [],
+            addOns: [],
+          });
+          setShowVariants(menuItem.hasVariants);
+          setShowAddOns(menuItem.hasAddOns);
+        }
+      };
+
+      loadExistingData();
+    } else if (!menuItem && open) {
+      // New item - reset to defaults
       form.reset({
-        propertyId: menuItem.propertyId,
-        categoryId: menuItem.categoryId,
-        name: menuItem.name,
-        description: menuItem.description || "",
-        foodType: (menuItem.foodType as "veg" | "non-veg") || "veg",
-        actualPrice: menuItem.actualPrice || "",
-        discountedPrice: menuItem.discountedPrice || "",
-        imageUrl: menuItem.imageUrl || "",
-        isAvailable: menuItem.isAvailable,
-        hasVariants: menuItem.hasVariants,
-        hasAddOns: menuItem.hasAddOns,
+        propertyId: properties?.[0]?.id || 0,
+        categoryId: null,
+        name: "",
+        description: "",
+        foodType: "veg",
+        actualPrice: "",
+        discountedPrice: "",
+        imageUrl: "",
+        isAvailable: true,
+        hasVariants: false,
+        hasAddOns: false,
         variants: [],
         addOns: [],
       });
-      setShowVariants(menuItem.hasVariants);
-      setShowAddOns(menuItem.hasAddOns);
+      setShowVariants(false);
+      setShowAddOns(false);
     }
-  }, [menuItem, open, form]);
+  }, [menuItem, open, form, properties]);
 
   const handleSubmit = async (data: MenuItemFormData) => {
     setIsSaving(true);

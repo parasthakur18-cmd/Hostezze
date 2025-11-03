@@ -1573,6 +1573,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete all variants for a menu item
+  app.delete("/api/menu-items/:menuItemId/variants", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteVariantsByMenuItem(parseInt(req.params.menuItemId));
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Menu Item Add-Ons
   app.get("/api/menu-items/:menuItemId/add-ons", isAuthenticated, async (req, res) => {
     try {
@@ -1607,6 +1617,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/menu-item-add-ons/:id", isAuthenticated, async (req, res) => {
     try {
       await storage.deleteMenuItemAddOn(parseInt(req.params.id));
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Bulk delete all add-ons for a menu item
+  app.delete("/api/menu-items/:menuItemId/add-ons", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteAddOnsByMenuItem(parseInt(req.params.menuItemId));
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ message: error.message });

@@ -146,12 +146,14 @@ export interface IStorage {
   createMenuItemVariant(variant: InsertMenuItemVariant): Promise<MenuItemVariant>;
   updateMenuItemVariant(id: number, variant: Partial<InsertMenuItemVariant>): Promise<MenuItemVariant>;
   deleteMenuItemVariant(id: number): Promise<void>;
+  deleteVariantsByMenuItem(menuItemId: number): Promise<void>;
 
   // Menu Item Add-On operations
   getAddOnsByMenuItem(menuItemId: number): Promise<MenuItemAddOn[]>;
   createMenuItemAddOn(addOn: InsertMenuItemAddOn): Promise<MenuItemAddOn>;
   updateMenuItemAddOn(id: number, addOn: Partial<InsertMenuItemAddOn>): Promise<MenuItemAddOn>;
   deleteMenuItemAddOn(id: number): Promise<void>;
+  deleteAddOnsByMenuItem(menuItemId: number): Promise<void>;
 
   // Order operations
   getAllOrders(): Promise<Order[]>;
@@ -661,6 +663,10 @@ export class DatabaseStorage implements IStorage {
     await db.delete(menuItemVariants).where(eq(menuItemVariants.id, id));
   }
 
+  async deleteVariantsByMenuItem(menuItemId: number): Promise<void> {
+    await db.delete(menuItemVariants).where(eq(menuItemVariants.menuItemId, menuItemId));
+  }
+
   // Menu Item Add-On operations
   async getAddOnsByMenuItem(menuItemId: number): Promise<MenuItemAddOn[]> {
     return await db
@@ -686,6 +692,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMenuItemAddOn(id: number): Promise<void> {
     await db.delete(menuItemAddOns).where(eq(menuItemAddOns.id, id));
+  }
+
+  async deleteAddOnsByMenuItem(menuItemId: number): Promise<void> {
+    await db.delete(menuItemAddOns).where(eq(menuItemAddOns.menuItemId, menuItemId));
   }
 
   // Order operations
