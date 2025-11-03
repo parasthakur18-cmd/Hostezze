@@ -40,7 +40,7 @@ export default function Properties() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertProperty) => {
-      return await apiRequest("POST", "/api/properties", data);
+      return await apiRequest("/api/properties", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
@@ -62,7 +62,7 @@ export default function Properties() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("DELETE", `/api/properties/${id}`);
+      return await apiRequest(`/api/properties/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties"] });

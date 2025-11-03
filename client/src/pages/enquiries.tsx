@@ -113,7 +113,7 @@ function EditEnquiryForm({ enquiry, rooms, onSuccess, onCancel }: EditEnquiryFor
 
   const updateEnquiryMutation = useMutation({
     mutationFn: async (data: EditEnquiryFormData) => {
-      return await apiRequest("PATCH", `/api/enquiries/${enquiry.id}`, data);
+      return await apiRequest(`/api/enquiries/${enquiry.id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
@@ -373,7 +373,7 @@ export default function Enquiries() {
 
   const confirmEnquiryMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("POST", `/api/enquiries/${id}/confirm`, {});
+      return await apiRequest(`/api/enquiries/${id}/confirm`, "POST", {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
@@ -395,7 +395,7 @@ export default function Enquiries() {
 
   const cancelEnquiryMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("PATCH", `/api/enquiries/${id}/status`, { status: "cancelled" });
+      return await apiRequest(`/api/enquiries/${id}/status`, "PATCH", { status: "cancelled" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });
@@ -417,7 +417,7 @@ export default function Enquiries() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/communications", data);
+      return await apiRequest("/api/communications", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });

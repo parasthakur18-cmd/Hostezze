@@ -71,7 +71,7 @@ export default function TravelAgents() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return await apiRequest("POST", "/api/travel-agents", data);
+      return await apiRequest("/api/travel-agents", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/travel-agents"] });
@@ -93,7 +93,7 @@ export default function TravelAgents() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: typeof formData }) => {
-      return await apiRequest("PATCH", `/api/travel-agents/${id}`, data);
+      return await apiRequest(`/api/travel-agents/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/travel-agents"] });
@@ -116,7 +116,7 @@ export default function TravelAgents() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("DELETE", `/api/travel-agents/${id}`);
+      return await apiRequest(`/api/travel-agents/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/travel-agents"] });

@@ -69,7 +69,7 @@ export default function NewEnquirySimple() {
 
   const createEnquiryMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/enquiries", data);
+      return await apiRequest("/api/enquiries", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/enquiries"] });

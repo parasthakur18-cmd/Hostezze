@@ -64,7 +64,7 @@ export default function Billing() {
 
   const mergeBillsMutation = useMutation({
     mutationFn: async (data: { bookingIds: number[]; primaryBookingId: number }) => {
-      return await apiRequest("POST", "/api/bills/merge", data);
+      return await apiRequest("/api/bills/merge", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bills"] });

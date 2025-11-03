@@ -80,7 +80,7 @@ export default function Kitchen() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return await apiRequest("PATCH", `/api/orders/${id}/status`, { status });
+      return await apiRequest(`/api/orders/${id}/status`, "PATCH", { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
@@ -102,7 +102,7 @@ export default function Kitchen() {
   const updateOrderMutation = useMutation({
     mutationFn: async ({ id, items }: { id: number; items: any[] }) => {
       const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
-      return await apiRequest("PATCH", `/api/orders/${id}`, { items, totalAmount: totalAmount.toFixed(2) });
+      return await apiRequest(`/api/orders/${id}`, "PATCH", { items, totalAmount: totalAmount.toFixed(2) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });

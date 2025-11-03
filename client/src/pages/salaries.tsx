@@ -66,7 +66,7 @@ export default function SalariesPage() {
 
   const createSalaryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof salaryFormSchema>) => {
-      return await apiRequest("POST", "/api/salaries", {
+      return await apiRequest("/api/salaries", "POST", {
         userId: data.userId,
         propertyId: data.propertyId,
         grossSalary: parseFloat(data.grossSalary),

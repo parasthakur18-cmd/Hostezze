@@ -123,7 +123,7 @@ export default function ActiveBookings() {
       includeServiceCharge: boolean;
       manualCharges: Array<{ name: string; amount: string }>;
     }) => {
-      return await apiRequest("POST", "/api/bookings/checkout", { 
+      return await apiRequest("/api/bookings/checkout", "POST", { 
         bookingId, 
         paymentMethod,
         discountType: discountType === "none" ? null : discountType,
@@ -161,7 +161,7 @@ export default function ActiveBookings() {
 
   const mergeCafeOrdersMutation = useMutation({
     mutationFn: async ({ orderIds, bookingId }: { orderIds: number[]; bookingId: number }) => {
-      return await apiRequest("PATCH", "/api/orders/merge-to-booking", { orderIds, bookingId });
+      return await apiRequest("/api/orders/merge-to-booking", "PATCH", { orderIds, bookingId });
     },
     onSuccess: async () => {
       // Force refetch to get fresh data

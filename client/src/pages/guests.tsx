@@ -63,7 +63,7 @@ export default function Guests() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertGuest) => {
-      return await apiRequest("POST", "/api/guests", data);
+      return await apiRequest("/api/guests", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/guests"] });

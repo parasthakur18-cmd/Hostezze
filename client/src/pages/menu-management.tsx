@@ -82,7 +82,7 @@ export default function MenuManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/menu-items", data);
+      return await apiRequest("/api/menu-items", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
@@ -104,7 +104,7 @@ export default function MenuManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return await apiRequest("PATCH", `/api/menu-items/${id}`, data);
+      return await apiRequest(`/api/menu-items/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
@@ -126,7 +126,7 @@ export default function MenuManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("DELETE", `/api/menu-items/${id}`, {});
+      return await apiRequest(`/api/menu-items/${id}`, "DELETE", {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
@@ -147,7 +147,7 @@ export default function MenuManagement() {
 
   const toggleAvailabilityMutation = useMutation({
     mutationFn: async ({ id, isAvailable }: { id: number; isAvailable: boolean }) => {
-      return await apiRequest("PATCH", `/api/menu-items/${id}`, { isAvailable });
+      return await apiRequest(`/api/menu-items/${id}`, "PATCH", { isAvailable });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });

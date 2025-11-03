@@ -89,7 +89,7 @@ export default function Leases() {
 
   const createLeaseMutation = useMutation({
     mutationFn: async (data: z.infer<typeof leaseFormSchema>) => {
-      const response = await apiRequest("POST", "/api/leases", {
+      const response = await apiRequest("/api/leases", "POST", {
         ...data,
         totalAmount: data.totalAmount,
         startDate: data.startDate,
@@ -117,7 +117,7 @@ export default function Leases() {
 
   const createPaymentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof paymentFormSchema>) => {
-      const response = await apiRequest("POST", `/api/leases/${selectedLease}/payments`, {
+      const response = await apiRequest(`/api/leases/${selectedLease}/payments`, "POST", {
         ...data,
         amount: data.amount,
         paymentDate: data.paymentDate,
@@ -151,7 +151,7 @@ export default function Leases() {
   const editAmountMutation = useMutation({
     mutationFn: async (data: z.infer<typeof editAmountFormSchema>) => {
       if (!leaseToEdit) throw new Error("No lease selected");
-      const response = await apiRequest("PATCH", `/api/leases/${leaseToEdit.id}/amount`, {
+      const response = await apiRequest(`/api/leases/${leaseToEdit.id}/amount`, "PATCH", {
         totalAmount: data.totalAmount,
       });
       return response.json();

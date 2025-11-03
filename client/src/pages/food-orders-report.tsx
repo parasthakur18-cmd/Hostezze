@@ -84,7 +84,7 @@ export default function FoodOrdersReport() {
 
   const mergeMutation = useMutation({
     mutationFn: async ({ orderIds, bookingId }: { orderIds: number[]; bookingId: number }) => {
-      return await apiRequest("PATCH", "/api/orders/merge-to-booking", {
+      return await apiRequest("/api/orders/merge-to-booking", "PATCH", {
         orderIds,
         bookingId,
       });

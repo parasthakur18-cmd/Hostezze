@@ -73,7 +73,7 @@ export default function Rooms() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertRoom) => {
-      return await apiRequest("POST", "/api/rooms", data);
+      return await apiRequest("/api/rooms", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
@@ -95,7 +95,7 @@ export default function Rooms() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: InsertRoom }) => {
-      return await apiRequest("PUT", `/api/rooms/${id}`, data);
+      return await apiRequest(`/api/rooms/${id}`, "PUT", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
@@ -118,7 +118,7 @@ export default function Rooms() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return await apiRequest("PATCH", `/api/rooms/${id}/status`, { status });
+      return await apiRequest(`/api/rooms/${id}/status`, "PATCH", { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
@@ -138,7 +138,7 @@ export default function Rooms() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("DELETE", `/api/rooms/${id}`);
+      return await apiRequest(`/api/rooms/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });

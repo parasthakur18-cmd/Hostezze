@@ -84,7 +84,7 @@ export default function Expenses() {
 
   const createExpenseMutation = useMutation({
     mutationFn: async (data: z.infer<typeof expenseFormSchema>) => {
-      const response = await apiRequest("POST", "/api/expenses", {
+      const response = await apiRequest("/api/expenses", "POST", {
         ...data,
         amount: data.amount,
         expenseDate: data.expenseDate,
@@ -119,7 +119,7 @@ export default function Expenses() {
 
   const deleteExpenseMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/expenses/${id}`);
+      await apiRequest(`/api/expenses/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -145,7 +145,7 @@ export default function Expenses() {
         ? data.keywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
         : [];
       
-      const response = await apiRequest("POST", "/api/expense-categories", {
+      const response = await apiRequest("/api/expense-categories", "POST", {
         name: data.name,
         description: data.description || null,
         keywords: keywordsArray,
@@ -179,7 +179,7 @@ export default function Expenses() {
         ? data.keywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
         : [];
       
-      const response = await apiRequest("PATCH", `/api/expense-categories/${id}`, {
+      const response = await apiRequest(`/api/expense-categories/${id}`, "PATCH", {
         name: data.name,
         description: data.description || null,
         keywords: keywordsArray,
@@ -208,7 +208,7 @@ export default function Expenses() {
 
   const deleteCategoryMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/expense-categories/${id}`);
+      await apiRequest(`/api/expense-categories/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expense-categories"] });

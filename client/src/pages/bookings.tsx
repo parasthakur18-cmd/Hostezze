@@ -127,7 +127,7 @@ export default function Bookings() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertBooking) => {
-      return await apiRequest("POST", "/api/bookings", data);
+      return await apiRequest("/api/bookings", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -153,7 +153,7 @@ export default function Bookings() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return await apiRequest("PATCH", `/api/bookings/${id}/status`, { status });
+      return await apiRequest(`/api/bookings/${id}/status`, "PATCH", { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -175,7 +175,7 @@ export default function Bookings() {
 
   const deleteBookingMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("DELETE", `/api/bookings/${id}`);
+      return await apiRequest(`/api/bookings/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -199,7 +199,7 @@ export default function Bookings() {
 
   const updateBookingMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InsertBooking> }) => {
-      return await apiRequest("PATCH", `/api/bookings/${id}`, data);
+      return await apiRequest(`/api/bookings/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -264,7 +264,7 @@ export default function Bookings() {
 
   const createTravelAgentMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/travel-agents", data);
+      return await apiRequest("/api/travel-agents", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/travel-agents"] });
@@ -339,7 +339,7 @@ export default function Bookings() {
         address: null,
         preferences: null,
       };
-      const guestResponse = await apiRequest("POST", "/api/guests", guestData);
+      const guestResponse = await apiRequest("/api/guests", "POST", guestData);
       const newGuest = await guestResponse.json();
       
       // Then create booking with the new guest
@@ -1729,7 +1729,7 @@ function CheckoutBillSummary({
 
   const checkoutMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/bookings/checkout", data);
+      return await apiRequest("/api/bookings/checkout", "POST", data);
     },
     onSuccess: () => {
       toast({

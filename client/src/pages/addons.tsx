@@ -87,7 +87,7 @@ export default function AddOnServices() {
 
   const createServiceMutation = useMutation({
     mutationFn: async (data: z.infer<typeof serviceFormSchema>) => {
-      return await apiRequest("POST", "/api/extra-services", {
+      return await apiRequest("/api/extra-services", "POST", {
         ...data,
         amount: data.amount,
         commission: data.commission || undefined,
@@ -114,7 +114,7 @@ export default function AddOnServices() {
 
   const deleteServiceMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("DELETE", `/api/extra-services/${id}`);
+      return await apiRequest(`/api/extra-services/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/extra-services"] });

@@ -73,7 +73,7 @@ export default function UsersManagement() {
       role: string; 
       assignedPropertyIds: number[] | null;
     }) => {
-      return await apiRequest("PATCH", `/api/users/${userId}/role`, {
+      return await apiRequest(`/api/users/${userId}/role`, "PATCH", {
         role,
         assignedPropertyIds,
       });
@@ -100,7 +100,7 @@ export default function UsersManagement() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return await apiRequest("DELETE", `/api/users/${userId}`);
+      return await apiRequest(`/api/users/${userId}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });

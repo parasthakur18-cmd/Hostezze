@@ -44,7 +44,7 @@ export default function QuickOrder() {
 
   const orderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      return await apiRequest("POST", "/api/orders", orderData);
+      return await apiRequest("/api/orders", "POST", orderData);
     },
     onSuccess: () => {
       toast({

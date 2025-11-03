@@ -63,7 +63,7 @@ export default function Menu() {
 
   const orderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      return await apiRequest("POST", "/api/public/orders", orderData);
+      return await apiRequest("/api/public/orders", "POST", orderData);
     },
     onSuccess: () => {
       toast({
