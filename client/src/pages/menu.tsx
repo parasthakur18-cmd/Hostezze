@@ -34,6 +34,9 @@ export default function Menu() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [selectedAddOns, setSelectedAddOns] = useState<{ id: number; name: string; price: string; quantity: number; }[]>([]);
+  const [isAddOnsSheetOpen, setIsAddOnsSheetOpen] = useState(false);
   const { toast } = useToast();
   
   // Detect order type, property, and room from URL query params
@@ -61,6 +64,12 @@ export default function Menu() {
     queryKey: ["/api/public/menu"],
   });
 
+  // Fetch add-ons for selected item
+  const { data: addOns } = useQuery<{ id: number; menuItemId: number; addOnName: string; addOnPrice: string; }[]>({
+    queryKey: [`/api/public/menu-items/${selectedItem?.id}/add-ons`],
+    enabled: !!selectedItem,
+  });
+
   const orderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       return await apiRequest("/api/public/orders", "POST", orderData);
@@ -86,17 +95,87 @@ export default function Menu() {
     },
   });
 
-  const addToCart = (item: MenuItem) => {
-    const existing = cart.find((i) => i.id === item.id);
+  const openAddOnsSheet = (item: MenuItem) => {
+    setSelectedItem(item);
+    setSelectedAddOns([]);
+    setIsAddOnsSheetOpen(true);
+  };
+
+  const toggleAddOn = (addOn: { id: number; addOnName: string; addOnPrice: string; }) => {
+    const existing = selectedAddOns.find(a => a.id === addOn.id);
     if (existing) {
-      setCart(cart.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)));
+      setSelectedAddOns(selectedAddOns.filter(a => a.id !== addOn.id));
     } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
+      setSelectedAddOns([...selectedAddOns, { id: addOn.id, name: addOn.addOnName, price: addOn.addOnPrice, quantity: 1 }]);
     }
+  };
+
+  const updateAddOnQuantity = (id: number, change: number) => {
+    setSelectedAddOns(prev => 
+      prev.map(addOn => 
+        addOn.id === id 
+          ? { ...addOn, quantity: Math.max(1, addOn.quantity + change) }
+          : addOn
+      )
+    );
+  };
+
+  const addToCartWithAddOns = () => {
+    if (!selectedItem) return;
+    
+    // Calculate total price including add-ons
+    const addOnsTotal = selectedAddOns.reduce((sum, addOn) => 
+      sum + (parseFloat(addOn.price) * addOn.quantity), 0
+    );
+    const itemPrice = parseFloat(selectedItem.price as string);
+    const totalPrice = itemPrice + addOnsTotal;
+    
+    // Add to cart with add-ons info in the item name for display
+    const addOnsText = selectedAddOns.length > 0 
+      ? ` (+ ${selectedAddOns.map(a => `${a.quantity}x ${a.name}`).join(', ')})`
+      : '';
+    
+    const cartItem: CartItem = {
+      ...selectedItem,
+      name: selectedItem.name + addOnsText,
+      price: totalPrice.toString(),
+      quantity: 1
+    };
+    
+    const existing = cart.find((i) => i.id === selectedItem.id && i.name === cartItem.name);
+    if (existing) {
+      setCart(cart.map((i) => (i.id === selectedItem.id && i.name === cartItem.name ? { ...i, quantity: i.quantity + 1 } : i)));
+    } else {
+      setCart([...cart, cartItem]);
+    }
+    
     toast({
       title: "Added to cart",
-      description: `${item.name} added`,
+      description: `${selectedItem.name} added${selectedAddOns.length > 0 ? ' with add-ons' : ''}`,
     });
+    
+    setIsAddOnsSheetOpen(false);
+    setSelectedItem(null);
+    setSelectedAddOns([]);
+  };
+
+  const addToCart = (item: MenuItem) => {
+    // Check if item has add-ons
+    if (item.hasAddOns) {
+      openAddOnsSheet(item);
+    } else {
+      // Directly add to cart if no add-ons
+      const existing = cart.find((i) => i.id === item.id);
+      if (existing) {
+        setCart(cart.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)));
+      } else {
+        setCart([...cart, { ...item, quantity: 1 }]);
+      }
+      toast({
+        title: "Added to cart",
+        description: `${item.name} added`,
+      });
+    }
   };
 
   const updateQuantity = (id: number, change: number) => {
@@ -386,6 +465,123 @@ export default function Menu() {
           </Card>
         )}
       </div>
+
+      {/* Add-Ons Selection Sheet */}
+      <Sheet open={isAddOnsSheetOpen} onOpenChange={setIsAddOnsSheetOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{selectedItem?.name}</SheetTitle>
+            <SheetDescription>
+              Customize your order with add-ons
+            </SheetDescription>
+          </SheetHeader>
+          
+          <div className="mt-6 space-y-6">
+            {/* Base Item Price */}
+            <div className="flex items-center justify-between pb-4 border-b">
+              <span className="font-medium">Base Price</span>
+              <span className="font-mono text-lg">₹{selectedItem?.price}</span>
+            </div>
+
+            {/* Add-Ons List */}
+            {addOns && addOns.length > 0 ? (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm">Available Add-Ons</h3>
+                {addOns.map((addOn) => {
+                  const isSelected = selectedAddOns.find(a => a.id === addOn.id);
+                  return (
+                    <div 
+                      key={addOn.id} 
+                      className="flex items-center justify-between gap-4 p-3 border rounded-lg hover-elevate"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={!!isSelected}
+                            onChange={() => toggleAddOn(addOn)}
+                            className="h-4 w-4"
+                            data-testid={`checkbox-addon-${addOn.id}`}
+                          />
+                          <div>
+                            <p className="font-medium">{addOn.addOnName}</p>
+                            <p className="text-sm text-muted-foreground font-mono">+₹{addOn.addOnPrice}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {isSelected && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => updateAddOnQuantity(addOn.id, -1)}
+                            data-testid={`button-decrease-addon-${addOn.id}`}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="w-8 text-center font-mono">{isSelected.quantity}</span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => updateAddOnQuantity(addOn.id, 1)}
+                            data-testid={`button-increase-addon-${addOn.id}`}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No add-ons available for this item</p>
+            )}
+
+            {/* Total Price Preview */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm">Base Price</span>
+                <span className="font-mono">₹{selectedItem?.price || "0"}</span>
+              </div>
+              {selectedAddOns.length > 0 && (
+                <>
+                  {selectedAddOns.map(addOn => (
+                    <div key={addOn.id} className="flex items-center justify-between mb-2 text-sm">
+                      <span className="text-muted-foreground">{addOn.quantity}x {addOn.name}</span>
+                      <span className="font-mono">₹{(parseFloat(addOn.price) * addOn.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                <span className="font-semibold">Total</span>
+                <span className="font-mono text-lg font-semibold">
+                  ₹{selectedItem ? (
+                    parseFloat(selectedItem.price as string) + 
+                    selectedAddOns.reduce((sum, a) => sum + (parseFloat(a.price) * a.quantity), 0)
+                  ).toFixed(2) : "0.00"}
+                </span>
+              </div>
+            </div>
+
+            {/* Add to Cart Button */}
+            <Button 
+              className="w-full" 
+              size="lg" 
+              onClick={addToCartWithAddOns}
+              data-testid="button-confirm-add-to-cart"
+            >
+              <ShoppingCart className="h-5 w-5 mr-2" />
+              Add to Cart
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <Toaster />
     </div>
   );
