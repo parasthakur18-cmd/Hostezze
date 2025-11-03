@@ -367,8 +367,39 @@ export default function Bookings() {
         };
       }
       
+      // Calculate totalAmount before sending
+      const checkInDate = new Date(data.checkInDate);
+      const checkOutDate = new Date(data.checkOutDate);
+      const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Calculate price per night
+      let pricePerNight = 0;
+      if (bookingType === "single") {
+        const selectedRoom = rooms?.find(r => r.id === data.roomId);
+        if (selectedRoom) {
+          pricePerNight = data.customPrice ? parseFloat(data.customPrice) : parseFloat(selectedRoom.pricePerNight.toString());
+          // For dormitory, multiply by beds booked
+          if (selectedRoom.roomCategory === "dormitory" && data.bedsBooked) {
+            pricePerNight = pricePerNight * data.bedsBooked;
+          }
+        }
+      } else {
+        // Group booking - sum all room prices
+        const selectedRooms = rooms?.filter(r => selectedRoomIds.includes(r.id)) || [];
+        pricePerNight = selectedRooms.reduce((sum, r) => {
+          const roomPrice = data.customPrice ? parseFloat(data.customPrice) / selectedRooms.length : parseFloat(r.pricePerNight.toString());
+          return sum + roomPrice;
+        }, 0);
+      }
+      
+      const totalAmount = (pricePerNight * numberOfNights).toFixed(2);
+      
+      // Add totalAmount to bookingData
+      bookingData.totalAmount = totalAmount;
+      
       console.log("Final bookingData being sent:", bookingData);
       console.log("travelAgentId value:", bookingData.travelAgentId);
+      console.log("Calculated totalAmount:", totalAmount);
       
       createMutation.mutate(bookingData as InsertBooking);
     } catch (error: any) {
@@ -404,11 +435,30 @@ export default function Bookings() {
   const onEditSubmit = (data: any) => {
     if (!editingBooking) return;
     
+    // Calculate totalAmount for edited booking
+    const checkInDate = new Date(data.checkInDate);
+    const checkOutDate = new Date(data.checkOutDate);
+    const numberOfNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Get the selected room to calculate price
+    const selectedRoom = rooms?.find(r => r.id === data.roomId);
+    let pricePerNight = 0;
+    if (selectedRoom) {
+      pricePerNight = data.customPrice ? parseFloat(data.customPrice) : parseFloat(selectedRoom.pricePerNight.toString());
+      // For dormitory, multiply by beds booked
+      if (selectedRoom.roomCategory === "dormitory" && data.bedsBooked) {
+        pricePerNight = pricePerNight * data.bedsBooked;
+      }
+    }
+    
+    const totalAmount = (pricePerNight * numberOfNights).toFixed(2);
+    
     // Convert Date objects to ISO strings for API transmission
     const payload = {
       ...data,
       checkInDate: data.checkInDate instanceof Date ? data.checkInDate.toISOString() : data.checkInDate,
       checkOutDate: data.checkOutDate instanceof Date ? data.checkOutDate.toISOString() : data.checkOutDate,
+      totalAmount: totalAmount,
     };
     
     updateBookingMutation.mutate({ id: editingBooking.id, data: payload as Partial<InsertBooking> });
