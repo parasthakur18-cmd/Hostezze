@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { apiRequest } from "@/lib/queryClient";
-import { type MenuItem } from "@shared/schema";
+import { type MenuItem, type MenuCategory } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -60,7 +60,11 @@ export default function Menu() {
     }
   }, []);
 
-  const { data: menuItems, isLoading } = useQuery<MenuItem[]>({
+  const { data: menuCategories, isLoading: categoriesLoading } = useQuery<MenuCategory[]>({
+    queryKey: ["/api/public/menu-categories"],
+  });
+
+  const { data: menuItems, isLoading: itemsLoading } = useQuery<MenuItem[]>({
     queryKey: ["/api/public/menu"],
   });
 
@@ -69,6 +73,8 @@ export default function Menu() {
     queryKey: [`/api/public/menu-items/${selectedItem?.id}/add-ons`],
     enabled: !!selectedItem,
   });
+
+  const isLoading = categoriesLoading || itemsLoading;
 
   const orderMutation = useMutation({
     mutationFn: async (orderData: any) => {
@@ -238,14 +244,11 @@ export default function Menu() {
     orderMutation.mutate(orderData);
   };
 
-  // Group by category
-  const categorizedItems = menuItems?.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
-    }
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<string, MenuItem[]>);
+  // Group by category using new category system
+  const groupedByCategory = menuCategories?.map((category) => ({
+    category,
+    items: menuItems?.filter((item) => item.categoryId === category.id) || [],
+  })).filter(group => group.items.length > 0);
 
   if (isLoading) {
     return (
@@ -416,9 +419,9 @@ export default function Menu() {
 
       {/* Menu Items */}
       <div className="container mx-auto px-4 md:px-6 py-8">
-        {categorizedItems && Object.entries(categorizedItems).map(([category, items]) => (
-          <div key={category} className="mb-12">
-            <h2 className="text-2xl font-bold font-serif mb-4 capitalize">{category}</h2>
+        {groupedByCategory?.map(({ category, items }) => (
+          <div key={category.id} className="mb-12">
+            <h2 className="text-2xl font-bold font-serif mb-4">{category.name}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {items
                 .filter((item) => item.isAvailable)
@@ -455,7 +458,7 @@ export default function Menu() {
           </div>
         ))}
 
-        {(!categorizedItems || Object.keys(categorizedItems).length === 0) && (
+        {(!groupedByCategory || groupedByCategory.length === 0) && (
           <Card className="p-12 text-center">
             <div className="flex flex-col items-center gap-4">
               <UtensilsCrossed className="h-16 w-16 text-muted-foreground" />

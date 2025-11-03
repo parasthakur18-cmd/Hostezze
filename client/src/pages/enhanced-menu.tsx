@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,8 @@ import {
 
 export default function EnhancedMenu() {
   const [selectedProperty, setSelectedProperty] = useState<number>(0);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showItemForm, setShowItemForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null);
@@ -64,11 +66,36 @@ export default function EnhancedMenu() {
   });
 
   const filteredCategories = categories?.filter(
-    (cat) => selectedProperty === 0 || cat.propertyId === selectedProperty
+    (cat) => {
+      // Property filter
+      if (selectedProperty !== 0 && cat.propertyId !== selectedProperty && cat.propertyId !== null) {
+        return false;
+      }
+      // Category filter (for tabs)
+      if (selectedCategoryFilter !== null && cat.id !== selectedCategoryFilter) {
+        return false;
+      }
+      return true;
+    }
   );
 
   const filteredItems = menuItems?.filter(
-    (item) => selectedProperty === 0 || item.propertyId === selectedProperty
+    (item) => {
+      // Property filter
+      if (selectedProperty !== 0 && item.propertyId !== selectedProperty && item.propertyId !== null) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchName = item.name.toLowerCase().includes(query);
+        const matchDesc = item.description?.toLowerCase().includes(query);
+        if (!matchName && !matchDesc) {
+          return false;
+        }
+      }
+      return true;
+    }
   );
 
   const toggleItemExpanded = (itemId: number) => {
@@ -106,28 +133,76 @@ export default function EnhancedMenu() {
         </p>
       </div>
 
-      {/* Property Filter */}
-      {properties && properties.length > 1 && (
-        <div className="mb-6">
-          <Label>Filter by Property</Label>
-          <Select
-            value={selectedProperty.toString()}
-            onValueChange={(val) => setSelectedProperty(parseInt(val))}
-          >
-            <SelectTrigger data-testid="select-property-filter">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">All Properties</SelectItem>
-              {properties.map((prop) => (
-                <SelectItem key={prop.id} value={prop.id.toString()}>
-                  {prop.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Filters Section */}
+      <div className="mb-6 space-y-4">
+        {/* Property Filter */}
+        {properties && properties.length > 1 && (
+          <div>
+            <Label>Filter by Property</Label>
+            <Select
+              value={selectedProperty.toString()}
+              onValueChange={(val) => setSelectedProperty(parseInt(val))}
+            >
+              <SelectTrigger data-testid="select-property-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">All Properties</SelectItem>
+                {properties.map((prop) => (
+                  <SelectItem key={prop.id} value={prop.id.toString()}>
+                    {prop.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Search Bar */}
+        <div>
+          <Label>Search Menu Items</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by item name or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-menu"
+            />
+          </div>
         </div>
-      )}
+
+        {/* Category Filter Tabs */}
+        {categories && categories.length > 0 && (
+          <div>
+            <Label className="mb-2 block">Quick Category Filter</Label>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={selectedCategoryFilter === null ? "default" : "outline"}
+                className="cursor-pointer hover-elevate"
+                onClick={() => setSelectedCategoryFilter(null)}
+                data-testid="badge-category-all"
+              >
+                All Categories ({categories.length})
+              </Badge>
+              {categories
+                ?.filter((cat) => selectedProperty === 0 || cat.propertyId === selectedProperty || cat.propertyId === null)
+                .map((cat) => (
+                  <Badge
+                    key={cat.id}
+                    variant={selectedCategoryFilter === cat.id ? "default" : "outline"}
+                    className="cursor-pointer hover-elevate"
+                    onClick={() => setSelectedCategoryFilter(cat.id)}
+                    data-testid={`badge-category-${cat.id}`}
+                  >
+                    {cat.name} ({filteredItems?.filter((item) => item.categoryId === cat.id).length || 0})
+                  </Badge>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Add Category Button */}
       <div className="mb-6">
