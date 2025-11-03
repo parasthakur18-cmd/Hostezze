@@ -856,7 +856,7 @@ export default function Bookings() {
                           <FormLabel>Travel Agent</FormLabel>
                           <Select
                             onValueChange={(value) => field.onChange(parseInt(value))}
-                            value={field.value?.toString()}
+                            value={field.value ? String(field.value) : undefined}
                           >
                             <FormControl>
                               <SelectTrigger data-testid="select-travel-agent">
@@ -1296,25 +1296,54 @@ export default function Bookings() {
                   )}
                 />
               </div>
-              <FormField
-                control={editForm.control}
-                name="numberOfGuests"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of Guests</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={field.value || 1}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                        data-testid="input-edit-booking-guests"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Booking Status</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || "pending"}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-booking-status">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="checked-in">Checked In</SelectItem>
+                          <SelectItem value="checked-out">Checked Out</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="numberOfGuests"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Guests</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={field.value || 1}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          data-testid="input-edit-booking-guests"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
