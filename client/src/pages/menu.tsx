@@ -268,7 +268,7 @@ export default function Menu() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b">
         <div className="container mx-auto px-4 md:px-6 py-4">
@@ -423,9 +423,9 @@ export default function Menu() {
 
       {/* Category Filter Tabs - Only tabs scroll */}
       {menuCategories && menuCategories.length > 0 && (
-        <div className="border-b bg-background overflow-hidden">
-          <div className="overflow-hidden">
-            <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="border-b bg-background">
+          <div className="overflow-x-auto overflow-y-hidden px-4 py-3" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex gap-2 w-max">
               <Badge
                 variant={selectedCategoryId === null ? "default" : "outline"}
                 className="cursor-pointer hover-elevate whitespace-nowrap flex-shrink-0"

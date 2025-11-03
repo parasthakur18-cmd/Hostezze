@@ -176,7 +176,7 @@ export default function CustomerMenu() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-24 overflow-x-hidden">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-primary/95 backdrop-blur-sm text-primary-foreground shadow-lg">
         <div className="p-4 max-w-7xl mx-auto">
@@ -216,9 +216,9 @@ export default function CustomerMenu() {
 
       {/* Category Filter Tabs - Only tabs scroll */}
       {categories && categories.length > 0 && (
-        <div className="border-b bg-background sticky top-[145px] z-10 overflow-hidden">
-          <div className="overflow-hidden">
-            <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="border-b bg-background sticky top-[145px] z-10">
+          <div className="overflow-x-auto overflow-y-hidden px-4 py-3" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex gap-2 w-max">
               <Badge
                 variant={selectedCategoryId === null ? "default" : "outline"}
                 className="cursor-pointer hover-elevate whitespace-nowrap flex-shrink-0"
