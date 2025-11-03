@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Hotel, Calendar, Users, TrendingUp, IndianRupee, LogIn, LogOut, ChefHat, Receipt } from "lucide-react";
+import { Building2, Hotel, Calendar, Users, TrendingUp, IndianRupee, LogIn, LogOut, ChefHat, Receipt, Plus, MessageSquarePlus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ const orderStatusColors = {
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("today-checkins");
+  const [, setLocation] = useLocation();
   
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -138,24 +140,46 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Daily Operations Tabs - Moved to top */}
+      {/* Quick Action Tabs - Optimized for Mobile (2x3 Grid) */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-        <TabsList className="mb-6">
-          <TabsTrigger value="today-checkins" data-testid="tab-today-checkins">
-            <LogIn className="h-4 w-4 mr-2" />
-            Today's Check-ins <Badge variant="secondary" className="ml-2">{todayCheckIns.length}</Badge>
+        <TabsList className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 h-auto p-2 mb-6">
+          <TabsTrigger value="today-checkins" className="flex flex-col h-auto py-3 px-2" data-testid="tab-today-checkins">
+            <LogIn className="h-5 w-5 mb-1" />
+            <span className="text-xs font-medium">Check-ins</span>
+            <Badge variant="secondary" className="mt-1 text-xs h-5">{todayCheckIns.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="today-checkouts" data-testid="tab-today-checkouts">
-            <LogOut className="h-4 w-4 mr-2" />
-            Today's Check-outs <Badge variant="secondary" className="ml-2">{todayCheckOuts.length}</Badge>
+          <TabsTrigger value="today-checkouts" className="flex flex-col h-auto py-3 px-2" data-testid="tab-today-checkouts">
+            <LogOut className="h-5 w-5 mb-1" />
+            <span className="text-xs font-medium">Check-outs</span>
+            <Badge variant="secondary" className="mt-1 text-xs h-5">{todayCheckOuts.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="active-orders" data-testid="tab-active-orders">
-            <ChefHat className="h-4 w-4 mr-2" />
-            Active Orders <Badge variant="secondary" className="ml-2">{activeOrders.length}</Badge>
+          <TabsTrigger value="active-orders" className="flex flex-col h-auto py-3 px-2" data-testid="tab-active-orders">
+            <ChefHat className="h-5 w-5 mb-1" />
+            <span className="text-xs font-medium">Orders</span>
+            <Badge variant="secondary" className="mt-1 text-xs h-5">{activeOrders.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="all-bookings" data-testid="tab-all-bookings">
-            <Receipt className="h-4 w-4 mr-2" />
-            All Bookings <Badge variant="secondary" className="ml-2">{bookings?.length || 0}</Badge>
+          <TabsTrigger value="all-bookings" className="flex flex-col h-auto py-3 px-2" data-testid="tab-all-bookings">
+            <Receipt className="h-5 w-5 mb-1" />
+            <span className="text-xs font-medium">Bookings</span>
+            <Badge variant="secondary" className="mt-1 text-xs h-5">{bookings?.length || 0}</Badge>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="new-booking" 
+            className="flex flex-col h-auto py-3 px-2 bg-primary/10 hover:bg-primary/20" 
+            onClick={() => setLocation("/bookings")}
+            data-testid="tab-new-booking"
+          >
+            <Plus className="h-5 w-5 mb-1 text-primary" />
+            <span className="text-xs font-medium text-primary">New Booking</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="new-enquiry" 
+            className="flex flex-col h-auto py-3 px-2 bg-primary/10 hover:bg-primary/20" 
+            onClick={() => setLocation("/new-enquiry")}
+            data-testid="tab-new-enquiry"
+          >
+            <MessageSquarePlus className="h-5 w-5 mb-1 text-primary" />
+            <span className="text-xs font-medium text-primary">New Enquiry</span>
           </TabsTrigger>
         </TabsList>
 
