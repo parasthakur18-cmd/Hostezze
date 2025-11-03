@@ -128,31 +128,34 @@ export default function NewEnquiry() {
 
     setLoadingRooms(true);
     try {
-      // Simplified: Just fetch all rooms for the property
-      const response = await fetch(`/api/rooms`);
-      if (!response.ok) throw new Error("Failed to fetch rooms");
-      const allRooms = await response.json();
+      // Fetch available rooms using the availability endpoint with date filtering
+      const checkInISO = checkIn.toISOString();
+      const checkOutISO = checkOut.toISOString();
+      const response = await fetch(
+        `/api/rooms/availability?propertyId=${propertyId}&checkIn=${encodeURIComponent(checkInISO)}&checkOut=${encodeURIComponent(checkOutISO)}`
+      );
       
-      // Filter by propertyId
-      const propertyRooms = allRooms.filter((r: Room) => r.propertyId === propertyId);
-      setAvailableRooms(propertyRooms);
+      if (!response.ok) throw new Error("Failed to fetch available rooms");
+      const availableRoomsList = await response.json();
+      
+      setAvailableRooms(availableRoomsList);
 
-      if (propertyRooms.length === 0) {
+      if (availableRoomsList.length === 0) {
         toast({
           title: "No Rooms Available",
-          description: "No rooms found for this property.",
+          description: "All rooms are booked for these dates. Please try different dates.",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Rooms Found",
-          description: `${propertyRooms.length} room(s) available.`,
+          title: "Rooms Available!",
+          description: `${availableRoomsList.length} room(s) available for your selected dates.`,
         });
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to load rooms",
+        description: "Failed to check room availability",
         variant: "destructive",
       });
       setAvailableRooms([]);
