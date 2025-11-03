@@ -457,19 +457,19 @@ export default function Menu() {
       )}
 
       {/* Menu Items */}
-      <div className="container mx-auto px-4 md:px-6 py-8">
+      <div className="container mx-auto px-4 py-6">
         {groupedByCategory?.map(({ category, items }) => (
-          <div key={category.id} className="mb-12">
-            <h2 className="text-2xl font-bold font-serif mb-4">{category.name}</h2>
+          <div key={category.id} className="mb-8">
+            <h2 className="text-xl font-bold mb-3">{category.name}</h2>
             <div className="grid grid-cols-1 gap-3">
               {items
                 .filter((item) => item.isAvailable)
                 .map((item) => (
-                  <Card key={item.id} className="hover-elevate overflow-hidden" data-testid={`card-menu-item-${item.id}`}>
-                    <div className="flex gap-3 p-3">
+                  <Card key={item.id} className="hover-elevate" data-testid={`card-menu-item-${item.id}`}>
+                    <div className="flex gap-2 p-2.5">
                       {/* Compact Image */}
                       {item.imageUrl && (
-                        <div className="flex-shrink-0 w-20 h-20 overflow-hidden rounded-md bg-muted">
+                        <div className="flex-shrink-0 w-16 h-16 overflow-hidden rounded bg-muted">
                           <img 
                             src={item.imageUrl} 
                             alt={item.name}
@@ -482,35 +482,31 @@ export default function Menu() {
                       )}
                       
                       {/* Item Details */}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <h3 className="font-semibold text-base leading-tight">{item.name}</h3>
-                            <Badge variant="secondary" className="font-mono flex-shrink-0">₹{item.price}</Badge>
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
-                          )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-2 mb-0.5">
+                          <h3 className="font-semibold text-sm leading-tight flex-1 min-w-0">{item.name}</h3>
+                          <Badge variant="secondary" className="font-mono text-xs px-1.5 py-0 h-5 flex-shrink-0">₹{item.price}</Badge>
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">{item.description}</p>
+                        )}
+                        <div className="flex items-center justify-between gap-2">
                           {item.preparationTime && (
                             <p className="text-xs text-muted-foreground">
                               <Clock className="inline h-3 w-3 mr-1" />
-                              ~{item.preparationTime} min
+                              {item.preparationTime}min
                             </p>
                           )}
+                          <Button
+                            size="sm"
+                            onClick={() => addToCart(item)}
+                            data-testid={`button-add-to-cart-${item.id}`}
+                            className="h-7 px-2 text-xs"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add
+                          </Button>
                         </div>
-                      </div>
-                      
-                      {/* Add Button */}
-                      <div className="flex-shrink-0 flex items-center">
-                        <Button
-                          size="sm"
-                          onClick={() => addToCart(item)}
-                          data-testid={`button-add-to-cart-${item.id}`}
-                          className="h-8 px-3"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add
-                        </Button>
                       </div>
                     </div>
                   </Card>

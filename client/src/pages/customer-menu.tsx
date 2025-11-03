@@ -250,48 +250,48 @@ export default function CustomerMenu() {
       )}
 
       {/* Menu Items by Category */}
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {groupedByCategory?.map(({ category, items }) => {
           if (items.length === 0) return null;
 
           return (
             <div key={category.id}>
               {/* Category Header */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-xl font-bold" data-testid={`heading-category-${category.id}`}>
+                  <h2 className="text-lg font-bold" data-testid={`heading-category-${category.id}`}>
                     {category.name}
                   </h2>
                   {category.startTime && category.endTime && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {category.startTime} - {category.endTime}
                     </p>
                   )}
                 </div>
-                <Badge variant="secondary">{items.length}</Badge>
+                <Badge variant="secondary" className="text-xs">{items.length}</Badge>
               </div>
 
               {/* Items Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 {items.map((item) => (
                   <Card
                     key={item.id}
-                    className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer"
+                    className="hover-elevate active-elevate-2 cursor-pointer"
                     onClick={() => handleSelectItem(item)}
                     data-testid={`card-item-${item.id}`}
                   >
-                    <div className="flex gap-3 p-3">
+                    <div className="flex gap-2 p-2.5">
                       {/* Item Image */}
                       <div className="flex-shrink-0">
                         {item.imageUrl ? (
                           <img
                             src={item.imageUrl}
                             alt={item.name}
-                            className="w-20 h-20 object-cover rounded-md"
+                            className="w-16 h-16 object-cover rounded"
                           />
                         ) : (
-                          <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center">
-                            <span className="text-3xl">
+                          <div className="w-16 h-16 bg-muted rounded flex items-center justify-center">
+                            <span className="text-2xl">
                               {item.foodType === "non-veg" ? "🔴" : "🟢"}
                             </span>
                           </div>
@@ -300,29 +300,29 @@ export default function CustomerMenu() {
 
                       {/* Item Details */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 mb-1">
-                          <span className="text-xs">
+                        <div className="flex items-start gap-1 mb-0.5">
+                          <span className="text-xs flex-shrink-0">
                             {item.foodType === "non-veg" ? "🔴" : "🟢"}
                           </span>
-                          <h3 className="font-semibold text-sm leading-tight flex-1">
+                          <h3 className="font-semibold text-sm leading-tight flex-1 min-w-0">
                             {item.name}
                           </h3>
-                          <Switch checked={item.isAvailable} disabled className="scale-75" />
+                          <Switch checked={item.isAvailable} disabled className="scale-75 flex-shrink-0" />
                         </div>
 
                         {item.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                          <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
                             {item.description}
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           {item.hasVariants ? (
-                            <span className="text-sm font-semibold text-primary">
+                            <span className="text-xs font-semibold text-primary">
                               See Prices
                             </span>
                           ) : (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               {item.discountedPrice && (
                                 <span className="text-xs text-muted-foreground line-through">
                                   ₹{item.actualPrice}
@@ -333,7 +333,7 @@ export default function CustomerMenu() {
                               </span>
                             </div>
                           )}
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                         </div>
                       </div>
                     </div>
