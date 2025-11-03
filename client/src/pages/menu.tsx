@@ -37,6 +37,7 @@ export default function Menu() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<{ id: number; name: string; price: string; quantity: number; }[]>([]);
   const [isAddOnsSheetOpen, setIsAddOnsSheetOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const { toast } = useToast();
   
   // Detect order type, property, and room from URL query params
@@ -245,10 +246,13 @@ export default function Menu() {
   };
 
   // Group by category using new category system
-  const groupedByCategory = menuCategories?.map((category) => ({
-    category,
-    items: menuItems?.filter((item) => item.categoryId === category.id) || [],
-  })).filter(group => group.items.length > 0);
+  const groupedByCategory = menuCategories
+    ?.filter((cat) => selectedCategoryId === null || cat.id === selectedCategoryId)
+    .map((category) => ({
+      category,
+      items: menuItems?.filter((item) => item.categoryId === category.id) || [],
+    }))
+    .filter(group => group.items.length > 0);
 
   if (isLoading) {
     return (
@@ -416,6 +420,41 @@ export default function Menu() {
           </div>
         </div>
       </div>
+
+      {/* Category Filter Tabs */}
+      {menuCategories && menuCategories.length > 0 && (
+        <div className="border-b bg-background">
+          <div className="container mx-auto px-4 md:px-6 py-3">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <Badge
+                variant={selectedCategoryId === null ? "default" : "outline"}
+                className="cursor-pointer hover-elevate whitespace-nowrap flex-shrink-0"
+                onClick={() => setSelectedCategoryId(null)}
+                data-testid="badge-category-all"
+              >
+                All ({menuItems?.filter((item) => item.isAvailable).length || 0})
+              </Badge>
+              {menuCategories.map((category) => {
+                const itemCount = menuItems?.filter(
+                  (item) => item.categoryId === category.id && item.isAvailable
+                ).length || 0;
+                if (itemCount === 0) return null;
+                return (
+                  <Badge
+                    key={category.id}
+                    variant={selectedCategoryId === category.id ? "default" : "outline"}
+                    className="cursor-pointer hover-elevate whitespace-nowrap flex-shrink-0"
+                    onClick={() => setSelectedCategoryId(category.id)}
+                    data-testid={`badge-category-${category.id}`}
+                  >
+                    {category.name} ({itemCount})
+                  </Badge>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Menu Items */}
       <div className="container mx-auto px-4 md:px-6 py-8">
