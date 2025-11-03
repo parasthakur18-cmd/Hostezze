@@ -2191,37 +2191,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Room availability checking - ULTRA SIMPLIFIED
   app.get("/api/rooms/availability", isAuthenticated, async (req, res) => {
-    console.log("🟢🟢🟢 NEW SIMPLIFIED CODE IS RUNNING 🟢🟢🟢");
     try {
-      const { propertyId } = req.query;
-      console.log("propertyId from query:", propertyId);
+      const { propertyId, checkIn, checkOut } = req.query;
       
       if (!propertyId) {
-        console.log("❌ No propertyId provided");
         return res.status(400).json({ message: "propertyId is required" });
       }
 
       const parsedPropertyId = parseInt(propertyId as string);
-      console.log("Parsed propertyId:", parsedPropertyId);
-      
       if (isNaN(parsedPropertyId)) {
-        console.log("❌ Invalid propertyId");
         return res.status(400).json({ message: "Invalid propertyId" });
       }
       
-      console.log("✓ About to query database for rooms...");
-      // Just return all rooms for this property (simplified)
-      const { rooms } = await import("@shared/schema");
+      // Get all rooms for this property
+      const { rooms, bookings: bookingsTable } = await import("@shared/schema");
       const allRooms = await db
         .select()
         .from(rooms)
         .where(eq(rooms.propertyId, parsedPropertyId));
       
-      console.log("✓✓✓ SUCCESS! Found rooms:", allRooms.length);
-      res.json(allRooms);
+      // If no dates provided, return all rooms (for simple listing)
+      if (!checkIn || !checkOut) {
+        return res.json(allRooms);
+      }
+      
+      // Parse dates
+      const requestCheckIn = new Date(checkIn as string);
+      const requestCheckOut = new Date(checkOut as string);
+      
+      // Get all active bookings that might overlap with requested dates
+      // Include all statuses except cancelled and checked-out
+      const allBookings = await db
+        .select()
+        .from(bookingsTable)
+        .where(
+          and(
+            not(eq(bookingsTable.status, "cancelled")),
+            not(eq(bookingsTable.status, "checked-out")),
+            // Booking overlaps if it's not completely before or after our dates
+            not(
+              or(
+                sql`${bookingsTable.checkOutDate} <= ${requestCheckIn}`, // Booking ends before we start
+                sql`${bookingsTable.checkInDate} >= ${requestCheckOut}`  // Booking starts after we end
+              )
+            )
+          )
+        );
+      
+      // Filter out rooms that are booked during requested dates
+      const availableRooms = allRooms.filter(room => {
+        // Check if this room has any overlapping bookings
+        const hasOverlap = allBookings.some(booking => 
+          (booking.roomId === room.id || booking.roomIds?.includes(room.id))
+        );
+        return !hasOverlap;
+      });
+      
+      res.json(availableRooms);
     } catch (error: any) {
-      console.error('❌❌❌ Availability error:', error.message);
-      console.error('Full error:', error);
+      console.error('Availability error:', error.message);
       res.status(500).json({ message: error.message });
     }
   });

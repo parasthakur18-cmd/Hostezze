@@ -477,13 +477,10 @@ export class DatabaseStorage implements IStorage {
       const availableRooms = await this.getAvailableRooms(booking.propertyId);
       if (availableRooms.length > 0) {
         booking.roomId = availableRooms[0].id;
-        // Update room status to occupied
-        await this.updateRoomStatus(availableRooms[0].id, "occupied");
       }
-    } else if (booking.roomId) {
-      // Update room status to occupied
-      await this.updateRoomStatus(booking.roomId, "occupied");
     }
+    // NOTE: Room status is NOT changed here - availability is determined by checking booking dates
+    // Room status is only changed for operational purposes (check-in, check-out, cleaning, maintenance)
 
     // Update guest's total stays
     await db
