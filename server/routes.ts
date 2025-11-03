@@ -104,12 +104,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== PUBLIC ROUTES (No Authentication Required) =====
   
   // Public Menu - for guest ordering
+  // Public menu categories (no auth required)
+  app.get("/api/public/menu-categories", async (req, res) => {
+    try {
+      const categories = await storage.getAllMenuCategories();
+      // Only return active categories
+      const activeCategories = categories.filter(cat => cat.isActive);
+      res.json(activeCategories);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public menu items (no auth required)
   app.get("/api/public/menu", async (req, res) => {
     try {
       const items = await storage.getAllMenuItems();
       // Only return available items
       const availableItems = items.filter(item => item.isAvailable);
       res.json(availableItems);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public menu item variants (no auth required)
+  app.get("/api/public/menu-items/:menuItemId/variants", async (req, res) => {
+    try {
+      const variants = await storage.getVariantsByMenuItem(parseInt(req.params.menuItemId));
+      res.json(variants);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Public menu item add-ons (no auth required)
+  app.get("/api/public/menu-items/:menuItemId/add-ons", async (req, res) => {
+    try {
+      const addOns = await storage.getAddOnsByMenuItem(parseInt(req.params.menuItemId));
+      res.json(addOns);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

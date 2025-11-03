@@ -24,6 +24,15 @@ The frontend uses **React 18** with **TypeScript** (Vite), **Wouter** for routin
 -   **Booking Deletion**: Safe deletion with protection - prevents deletion of bookings with bills or food orders to maintain financial integrity.
 -   **Payment & Communication System**: Tracks advance payment status, sends messages to guests via WhatsApp/SMS using templates, and logs all communications.
 -   **Restaurant & Order Management**: Integrates restaurant operations, order tracking, menu item management, and food orders reporting with status-based kitchen views (Active/Pending/Completed tabs).
+-   **My Rasoi Menu System** (Added Nov 3, 2025): Complete restaurant menu management inspired by My Rasoi with:
+    - **Menu Categories**: Category management with images, time slots (breakfast/lunch/dinner), display ordering, and active/inactive toggles
+    - **Menu Items**: Dish management with descriptions, images, veg/non-veg indicators, availability toggles, and variant support flags
+    - **Item Variants**: Multiple pricing tiers (Small/Medium/Large, Half/Full) with actual and discounted prices per variant
+    - **Add-Ons**: Optional extras per dish (sides, toppings) with individual pricing
+    - **Enhanced Menu Management**: Staff interface at `/enhanced-menu` for managing categories, items, variants, and add-ons with inline forms
+    - **Customer Menu Interface**: Mobile-optimized public menu at `/customer-menu` with category browsing, search, automatic add-on popup when selecting items, cart management, and order totaling
+    - **Public API**: Unauthenticated endpoints (`/api/public/menu-categories`, `/api/public/menu`, `/api/public/menu-items/:id/variants`, `/api/public/menu-items/:id/add-ons`) for guest ordering without login
+    - **Add-On Selection Flow**: When customers click a menu item, variants appear first (if available), then add-ons automatically display with quantity controls
 -   **Room-Specific QR Codes**: Generate unique QR codes per property and room for contactless room service ordering. Guests scan and room number is auto-filled.
 -   **Public Menu Ordering**: Public menu page supports both room service (with auto-filled room from QR) and walk-in café orders without authentication.
 -   **In-House Guest Café Orders**: Staff can mark café customers as "In-House Guest" to automatically link orders to their room bill via booking ID.

@@ -34,6 +34,8 @@ import ActiveBookings from "@/pages/active-bookings";
 import RoomCalendar from "@/pages/room-calendar";
 import FoodOrdersReport from "@/pages/food-orders-report";
 import MenuManagement from "@/pages/menu-management";
+import EnhancedMenu from "@/pages/enhanced-menu";
+import CustomerMenu from "@/pages/customer-menu";
 import BookingAnalytics from "@/pages/booking-analytics";
 import QRCodes from "@/pages/qr-codes";
 import Salaries from "@/pages/salaries";
@@ -57,6 +59,7 @@ function Router() {
     <Switch>
       {/* Public Routes - No Auth Required */}
       <Route path="/menu" component={Menu} />
+      <Route path="/customer-menu" component={CustomerMenu} />
       <Route path="/qr-codes" component={QRCodes} />
       
       {!isAuthenticated ? (
@@ -74,6 +77,7 @@ function Router() {
           <Route path="/kitchen" component={Kitchen} />
           <Route path="/quick-order" component={QuickOrder} />
           <Route path="/menu-management" component={MenuManagement} />
+          <Route path="/enhanced-menu" component={EnhancedMenu} />
           <Route path="/food-orders-report" component={FoodOrdersReport} />
           <Route path="/booking-analytics" component={BookingAnalytics} />
           <Route path="/enquiries" component={Enquiries} />
