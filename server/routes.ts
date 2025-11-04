@@ -837,9 +837,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedBookings = activeBookings.map(booking => {
         const guest = allGuests.find(g => g.id === booking.guestId);
         const room = booking.roomId ? allRooms.find(r => r.id === booking.roomId) : null;
-        const property = room?.propertyId ? allProperties.find(p => p.id === room.propertyId) : null;
+        
+        // For group bookings, get all rooms
+        const groupRooms = booking.isGroupBooking && booking.roomIds
+          ? allRooms.filter(r => booking.roomIds!.includes(r.id))
+          : [];
+        
+        // Get property from either single room or first group room
+        const property = room?.propertyId 
+          ? allProperties.find(p => p.id === room.propertyId)
+          : groupRooms.length > 0 
+            ? allProperties.find(p => p.id === groupRooms[0].propertyId)
+            : null;
 
-        if (!guest || !room) {
+        if (!guest || (!room && groupRooms.length === 0)) {
           return null;
         }
 
@@ -892,6 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...booking,
           guest,
           room,
+          rooms: groupRooms.length > 0 ? groupRooms : undefined,
           property,
           nightsStayed,
           orders: bookingOrders,

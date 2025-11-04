@@ -24,6 +24,8 @@ interface ActiveBooking {
   specialRequests: string | null;
   advanceAmount: string;
   customPrice: string | null;
+  isGroupBooking: boolean;
+  roomIds: number[] | null;
   guest: {
     id: number;
     fullName: string;
@@ -35,7 +37,13 @@ interface ActiveBooking {
     roomNumber: string;
     type: string;
     pricePerNight: string;
-  };
+  } | null;
+  rooms?: Array<{
+    id: number;
+    roomNumber: string;
+    type: string;
+    pricePerNight: string;
+  }>;
   property: {
     id: number;
     name: string;
@@ -104,9 +112,15 @@ export default function ActiveBookings() {
   const filteredBookings = activeBookings?.filter((booking) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
+    
+    // For group bookings, search across all rooms
+    const roomNumberMatch = booking.isGroupBooking && booking.rooms
+      ? booking.rooms.some(room => room.roomNumber.toLowerCase().includes(query))
+      : booking.room?.roomNumber.toLowerCase().includes(query);
+    
     return (
       booking.guest.fullName.toLowerCase().includes(query) ||
-      booking.room.roomNumber.toLowerCase().includes(query) ||
+      roomNumberMatch ||
       booking.id.toString().includes(query) ||
       booking.guest.phone.includes(query)
     );
@@ -343,9 +357,24 @@ export default function ActiveBookings() {
                       <span className="truncate">{booking.guest.phone}</span>
                     </CardDescription>
                   </div>
-                  <Badge variant="default" data-testid={`badge-room-${booking.id}`}>
-                    Room {booking.room.roomNumber}
-                  </Badge>
+                  <div className="flex flex-col gap-1 items-end">
+                    {booking.isGroupBooking ? (
+                      <>
+                        <Badge variant="secondary" className="bg-blue-500 text-white text-xs">
+                          Group Booking
+                        </Badge>
+                        <Badge variant="default" data-testid={`badge-room-${booking.id}`} className="text-xs">
+                          {booking.rooms && booking.rooms.length > 0
+                            ? booking.rooms.map(r => r.roomNumber).join(", ")
+                            : "Multiple Rooms"}
+                        </Badge>
+                      </>
+                    ) : (
+                      <Badge variant="default" data-testid={`badge-room-${booking.id}`}>
+                        Room {booking.room?.roomNumber || "TBA"}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
 
@@ -476,9 +505,29 @@ export default function ActiveBookings() {
           {checkoutDialog.booking && (
             <div className="space-y-4">
               <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-                <div className="flex justify-between">
-                  <span className="font-medium">{checkoutDialog.booking.guest.fullName}</span>
-                  <span className="text-muted-foreground">Room {checkoutDialog.booking.room.roomNumber}</span>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <span className="font-medium">{checkoutDialog.booking.guest.fullName}</span>
+                    {checkoutDialog.booking.isGroupBooking && (
+                      <Badge variant="secondary" className="ml-2 bg-blue-500 text-white text-xs">
+                        Group Booking
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {checkoutDialog.booking.isGroupBooking && checkoutDialog.booking.rooms ? (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Rooms: </span>
+                        <span className="font-medium">
+                          {checkoutDialog.booking.rooms.map(r => r.roomNumber).join(", ")}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Room {checkoutDialog.booking.room?.roomNumber || "TBA"}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Check-in Date</span>
