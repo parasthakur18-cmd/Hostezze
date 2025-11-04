@@ -529,12 +529,26 @@ export class DatabaseStorage implements IStorage {
   async updateBookingStatus(id: number, status: string): Promise<Booking> {
     const booking = await this.getBooking(id);
     
-    // Handle room status changes based on booking status
-    if (booking?.roomId) {
-      if (status === "checked-in") {
-        await this.updateRoomStatus(booking.roomId, "occupied");
-      } else if (status === "checked-out" || status === "cancelled") {
-        await this.updateRoomStatus(booking.roomId, "cleaning");
+    // Update room status based on booking status - handle both single and group bookings
+    if (booking) {
+      // Determine which rooms to update
+      const roomsToUpdate: number[] = [];
+      
+      if (booking.isGroupBooking && booking.roomIds && booking.roomIds.length > 0) {
+        // Group booking: update all rooms
+        roomsToUpdate.push(...booking.roomIds);
+      } else if (booking.roomId) {
+        // Single room booking
+        roomsToUpdate.push(booking.roomId);
+      }
+      
+      // Update status for all rooms
+      for (const roomId of roomsToUpdate) {
+        if (status === "checked-in") {
+          await this.updateRoomStatus(roomId, "occupied");
+        } else if (status === "checked-out" || status === "cancelled") {
+          await this.updateRoomStatus(roomId, "cleaning");
+        }
       }
     }
 
