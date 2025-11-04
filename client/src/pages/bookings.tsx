@@ -43,6 +43,7 @@ export default function Bookings() {
     email: "",
     idProofImage: "",
   });
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const [checkoutBookingId, setCheckoutBookingId] = useState<number | null>(null);
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -64,10 +65,18 @@ export default function Bookings() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('new') === 'true') {
       setIsDialogOpen(true);
+      setValidationAttempted(false);
       // Clean up URL without page reload
       window.history.replaceState({}, '', '/bookings');
     }
   }, []);
+  
+  // Reset validation state when dialog is closed
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setValidationAttempted(false);
+    }
+  }, [isDialogOpen]);
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
@@ -290,6 +299,9 @@ export default function Bookings() {
       return;
     }
     
+    // Mark that validation has been attempted
+    setValidationAttempted(true);
+    
     console.log("onSubmit called with data:", data);
     console.log("Booking type:", bookingType);
     console.log("Selected room IDs:", selectedRoomIds);
@@ -298,8 +310,8 @@ export default function Bookings() {
     // First, validate and create the guest
     if (!quickGuestData.fullName || !quickGuestData.phone) {
       toast({
-        title: "Error",
-        description: "Guest name and phone number are required",
+        title: "Missing Required Fields",
+        description: "Please enter guest name and phone number (marked with red border)",
         variant: "destructive",
       });
       return;
@@ -579,14 +591,14 @@ export default function Bookings() {
                     value={quickGuestData.fullName}
                     onChange={(e) => setQuickGuestData({ ...quickGuestData, fullName: e.target.value })}
                     data-testid="input-guest-name"
-                    className="bg-background"
+                    className={`bg-background ${validationAttempted && !quickGuestData.fullName ? 'border-destructive border-2' : ''}`}
                   />
                   <Input
                     placeholder="Phone Number *"
                     value={quickGuestData.phone}
                     onChange={(e) => setQuickGuestData({ ...quickGuestData, phone: e.target.value })}
                     data-testid="input-guest-phone"
-                    className="bg-background"
+                    className={`bg-background ${validationAttempted && !quickGuestData.phone ? 'border-destructive border-2' : ''}`}
                   />
                   <Input
                     placeholder="Email (optional)"
