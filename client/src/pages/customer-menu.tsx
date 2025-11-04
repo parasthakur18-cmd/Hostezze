@@ -475,6 +475,16 @@ export default function CustomerMenu() {
                     {selectedItem.description}
                   </p>
                 )}
+                {/* DEBUG INFO - REMOVE AFTER TESTING */}
+                <div className="bg-yellow-100 border-2 border-yellow-500 p-3 rounded mt-2 text-xs">
+                  <p className="font-bold text-yellow-900">🔍 DEBUG INFO (Latest Version Loaded!)</p>
+                  <p className="text-yellow-800">Item ID: {selectedItem.id}</p>
+                  <p className="text-yellow-800">Has Variants Flag: {selectedItem.hasVariants ? '✅ TRUE' : '❌ FALSE'}</p>
+                  <p className="text-yellow-800">Has Add-Ons Flag: {selectedItem.hasAddOns ? '✅ TRUE' : '❌ FALSE'}</p>
+                  <p className="text-yellow-800">Variants Loading: {variantsLoading ? 'Yes...' : 'No'}</p>
+                  <p className="text-yellow-800">Variants Data: {allVariants ? `${allVariants.length} items` : 'null/undefined'}</p>
+                  <p className="text-yellow-800">Add-Ons Data: {allAddOns ? `${allAddOns.length} items` : 'null/undefined'}</p>
+                </div>
               </SheetHeader>
 
               <div className="space-y-6 py-4">
