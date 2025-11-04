@@ -68,23 +68,44 @@ export default function CustomerMenu() {
     queryFn: () => publicFetch("/api/public/menu"),
   });
 
-  const { data: allVariants } = useQuery<MenuItemVariant[]>({
+  const { data: allVariants, isLoading: variantsLoading, isError: variantsError } = useQuery<MenuItemVariant[]>({
     queryKey: selectedItem ? [`/api/public/menu-items/${selectedItem.id}/variants`] : [],
-    queryFn: () => publicFetch(`/api/public/menu-items/${selectedItem!.id}/variants`),
+    queryFn: async () => {
+      console.log(`🔄 Fetching variants for item ${selectedItem!.id}...`);
+      const result = await publicFetch(`/api/public/menu-items/${selectedItem!.id}/variants`);
+      console.log(`✅ Variants fetched:`, result);
+      return result;
+    },
     enabled: !!selectedItem,
   });
 
-  const { data: allAddOns } = useQuery<MenuItemAddOn[]>({
+  const { data: allAddOns, isLoading: addOnsLoading, isError: addOnsError } = useQuery<MenuItemAddOn[]>({
     queryKey: selectedItem ? [`/api/public/menu-items/${selectedItem.id}/add-ons`] : [],
-    queryFn: () => publicFetch(`/api/public/menu-items/${selectedItem!.id}/add-ons`),
+    queryFn: async () => {
+      console.log(`🔄 Fetching add-ons for item ${selectedItem!.id}...`);
+      const result = await publicFetch(`/api/public/menu-items/${selectedItem!.id}/add-ons`);
+      console.log(`✅ Add-ons fetched:`, result);
+      return result;
+    },
     enabled: !!selectedItem,
   });
 
   // Debug logging
   if (selectedItem) {
-    console.log("Selected Item:", selectedItem.name, "ID:", selectedItem.id);
-    console.log("All Variants:", allVariants);
-    console.log("All Add-Ons:", allAddOns);
+    console.log("📋 Selected Item:", {
+      name: selectedItem.name,
+      id: selectedItem.id,
+      hasVariants: selectedItem.hasVariants,
+      hasAddOns: selectedItem.hasAddOns
+    });
+    console.log("📊 Query Status:", {
+      variantsLoading,
+      variantsError,
+      variantsData: allVariants,
+      addOnsLoading,
+      addOnsError,
+      addOnsData: allAddOns
+    });
   }
 
   // Fetch properties for café orders
