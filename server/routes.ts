@@ -1269,10 +1269,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch room(s) to get price
       const room = booking.roomId ? await storage.getRoom(booking.roomId) : null;
       
-      // Calculate nights
+      // Calculate nights (minimum 1 night even if same-day checkout)
       const checkInDate = new Date(booking.checkInDate);
       const checkOutDate = new Date(booking.checkOutDate);
-      const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+      const calculatedNights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+      const nights = Math.max(1, calculatedNights); // Ensure at least 1 night
       
       // Calculate room charges - handle both single and group bookings
       let roomCharges = 0;
