@@ -21,8 +21,23 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+interface CartAddOn {
+  id: number;
+  name: string;
+  price: string;
+  quantity: number;
+}
+
 interface CartItem extends MenuItem {
   quantity: number;
+  cartId: string;
+  selectedVariant?: {
+    id: number;
+    variantName: string;
+    actualPrice: string;
+    discountedPrice: string | null;
+  } | null;
+  cartAddOns?: CartAddOn[];
 }
 
 export default function Menu() {
@@ -138,35 +153,18 @@ export default function Menu() {
   const addToCartWithAddOns = () => {
     if (!selectedItem) return;
     
-    // Calculate total price including variant and add-ons
-    const basePrice = selectedVariant 
-      ? parseFloat(selectedVariant.discountedPrice || selectedVariant.actualPrice)
-      : parseFloat(selectedItem.price as string);
-      
-    const addOnsTotal = selectedAddOns.reduce((sum, addOn) => 
-      sum + (parseFloat(addOn.price) * addOn.quantity), 0
-    );
-    const totalPrice = basePrice + addOnsTotal;
-    
-    // Add to cart with variant and add-ons info in the item name for display
-    const variantText = selectedVariant ? ` (${selectedVariant.variantName})` : '';
-    const addOnsText = selectedAddOns.length > 0 
-      ? ` + ${selectedAddOns.map(a => `${a.quantity}x ${a.name}`).join(', ')}`
-      : '';
+    // Generate unique cart ID for this combination
+    const cartId = `${selectedItem.id}-${selectedVariant?.id || 'novariant'}-${Date.now()}`;
     
     const cartItem: CartItem = {
       ...selectedItem,
-      name: selectedItem.name + variantText + addOnsText,
-      price: totalPrice.toString(),
-      quantity: 1
+      cartId,
+      quantity: 1,
+      selectedVariant: selectedVariant,
+      cartAddOns: selectedAddOns.length > 0 ? [...selectedAddOns] : undefined
     };
     
-    const existing = cart.find((i) => i.id === selectedItem.id && i.name === cartItem.name);
-    if (existing) {
-      setCart(cart.map((i) => (i.id === selectedItem.id && i.name === cartItem.name ? { ...i, quantity: i.quantity + 1 } : i)));
-    } else {
-      setCart([...cart, cartItem]);
-    }
+    setCart([...cart, cartItem]);
     
     toast({
       title: "Added to cart",
@@ -175,6 +173,7 @@ export default function Menu() {
     
     setIsAddOnsSheetOpen(false);
     setSelectedItem(null);
+    setSelectedVariant(null);
     setSelectedAddOns([]);
   };
 
@@ -184,12 +183,8 @@ export default function Menu() {
       openAddOnsSheet(item);
     } else {
       // Directly add to cart if no variants or add-ons
-      const existing = cart.find((i) => i.id === item.id);
-      if (existing) {
-        setCart(cart.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)));
-      } else {
-        setCart([...cart, { ...item, quantity: 1 }]);
-      }
+      const cartId = `${item.id}-novariant-${Date.now()}`;
+      setCart([...cart, { ...item, cartId, quantity: 1 }]);
       toast({
         title: "Added to cart",
         description: `${item.name} added`,
@@ -197,21 +192,53 @@ export default function Menu() {
     }
   };
 
-  const updateQuantity = (id: number, change: number) => {
+  const updateQuantity = (cartId: string, change: number) => {
     setCart((prev) => {
       const updated = prev.map((item) =>
-        item.id === id ? { ...item, quantity: Math.max(0, item.quantity + change) } : item
+        item.cartId === cartId ? { ...item, quantity: Math.max(0, item.quantity + change) } : item
       );
       return updated.filter((item) => item.quantity > 0);
     });
   };
 
-  const removeFromCart = (id: number) => {
-    setCart(cart.filter((item) => item.id !== id));
+  const updateCartAddOnQuantity = (cartId: string, addOnId: number, change: number) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.cartId === cartId && item.cartAddOns) {
+          return {
+            ...item,
+            cartAddOns: item.cartAddOns.map((addOn) =>
+              addOn.id === addOnId
+                ? { ...addOn, quantity: Math.max(1, addOn.quantity + change) }
+                : addOn
+            ),
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  const removeFromCart = (cartId: string) => {
+    setCart(cart.filter((item) => item.cartId !== cartId));
   };
 
   const calculateTotal = () => {
-    return cart.reduce((sum, item) => sum + parseFloat(item.price as string) * item.quantity, 0);
+    return cart.reduce((sum, item) => {
+      // Base price (variant or regular price)
+      const basePrice = item.selectedVariant 
+        ? parseFloat(item.selectedVariant.discountedPrice || item.selectedVariant.actualPrice)
+        : parseFloat(item.price as string);
+      
+      // Add-ons total
+      const addOnsTotal = item.cartAddOns
+        ? item.cartAddOns.reduce((addOnSum, addOn) => 
+            addOnSum + (parseFloat(addOn.price) * addOn.quantity), 0)
+        : 0;
+      
+      // Item total = (base price * main quantity) + add-ons total
+      return sum + (basePrice * item.quantity) + addOnsTotal;
+    }, 0);
   };
 
   const handleCheckout = () => {
@@ -236,12 +263,30 @@ export default function Menu() {
     const orderData: any = {
       orderType,
       orderSource: "guest",
-      items: cart.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      })),
+      items: cart.map((item) => {
+        const basePrice = item.selectedVariant 
+          ? parseFloat(item.selectedVariant.discountedPrice || item.selectedVariant.actualPrice)
+          : parseFloat(item.price as string);
+        
+        const variantText = item.selectedVariant ? ` (${item.selectedVariant.variantName})` : '';
+        const addOnsText = item.cartAddOns && item.cartAddOns.length > 0
+          ? ` + ${item.cartAddOns.map(a => `${a.quantity}x ${a.name}`).join(', ')}`
+          : '';
+        
+        const addOnsTotal = item.cartAddOns
+          ? item.cartAddOns.reduce((sum, addOn) => 
+              sum + (parseFloat(addOn.price) * addOn.quantity), 0)
+          : 0;
+        
+        const totalPrice = (basePrice * item.quantity) + addOnsTotal;
+        
+        return {
+          id: item.id,
+          name: item.name + variantText + addOnsText,
+          price: (totalPrice / item.quantity).toFixed(2),
+          quantity: item.quantity,
+        };
+      }),
       totalAmount: calculateTotal().toFixed(2),
       specialInstructions: specialInstructions || null,
     };
@@ -316,41 +361,107 @@ export default function Menu() {
                     <p className="text-center text-muted-foreground py-8">Your cart is empty</p>
                   ) : (
                     <>
-                      {cart.map((item) => (
-                        <div key={item.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                          <div className="flex-1">
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-sm text-muted-foreground">₹{item.price}</p>
+                      {cart.map((item) => {
+                        const basePrice = item.selectedVariant 
+                          ? parseFloat(item.selectedVariant.discountedPrice || item.selectedVariant.actualPrice)
+                          : parseFloat(item.price as string);
+                        
+                        return (
+                          <div key={item.cartId} className="p-3 border rounded-lg space-y-3">
+                            {/* Main Item */}
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1">
+                                <p className="font-medium">
+                                  {item.name}
+                                  {item.selectedVariant && (
+                                    <span className="text-sm text-muted-foreground ml-1">
+                                      ({item.selectedVariant.variantName})
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-sm text-muted-foreground font-mono">₹{basePrice.toFixed(2)} each</p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8"
+                                  onClick={() => updateQuantity(item.cartId, -1)}
+                                  data-testid={`button-decrease-${item.cartId}`}
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                                <span className="w-8 text-center font-mono">{item.quantity}</span>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8"
+                                  onClick={() => updateQuantity(item.cartId, 1)}
+                                  data-testid={`button-increase-${item.cartId}`}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8"
+                                  onClick={() => removeFromCart(item.cartId)}
+                                  data-testid={`button-remove-${item.cartId}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Add-ons with Independent Controls */}
+                            {item.cartAddOns && item.cartAddOns.length > 0 && (
+                              <div className="pl-4 border-l-2 space-y-2">
+                                {item.cartAddOns.map((addOn) => (
+                                  <div key={addOn.id} className="flex items-center gap-3 text-sm">
+                                    <div className="flex-1">
+                                      <p className="text-muted-foreground">+ {addOn.name}</p>
+                                      <p className="text-xs text-muted-foreground font-mono">₹{addOn.price} each</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-7 w-7"
+                                        onClick={() => updateCartAddOnQuantity(item.cartId, addOn.id, -1)}
+                                        data-testid={`button-decrease-addon-${item.cartId}-${addOn.id}`}
+                                      >
+                                        <Minus className="h-3 w-3" />
+                                      </Button>
+                                      <span className="w-6 text-center font-mono text-xs">{addOn.quantity}</span>
+                                      <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-7 w-7"
+                                        onClick={() => updateCartAddOnQuantity(item.cartId, addOn.id, 1)}
+                                        data-testid={`button-increase-addon-${item.cartId}-${addOn.id}`}
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Item Total */}
+                            <div className="flex justify-between text-sm pt-2 border-t">
+                              <span className="text-muted-foreground">Subtotal</span>
+                              <span className="font-mono font-medium">
+                                ₹{(
+                                  (basePrice * item.quantity) + 
+                                  (item.cartAddOns?.reduce((sum, addOn) => 
+                                    sum + (parseFloat(addOn.price) * addOn.quantity), 0) || 0)
+                                ).toFixed(2)}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              onClick={() => updateQuantity(item.id, -1)}
-                              data-testid={`button-decrease-${item.id}`}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className="w-8 text-center font-mono">{item.quantity}</span>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              onClick={() => updateQuantity(item.id, 1)}
-                              data-testid={`button-increase-${item.id}`}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => removeFromCart(item.id)}
-                              data-testid={`button-remove-${item.id}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       <div className="border-t pt-4 space-y-3">
                         {orderType === "room" ? (
