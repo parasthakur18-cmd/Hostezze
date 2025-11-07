@@ -607,6 +607,9 @@ export default function Menu() {
                       {/* Item Details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-2 mb-0.5">
+                          <span className="text-xs flex-shrink-0">
+                            {item.foodType === "non-veg" ? "🔴" : "🟢"}
+                          </span>
                           <h3 className="font-semibold text-sm leading-tight flex-1 min-w-0">{item.name}</h3>
                           <Badge variant="secondary" className="font-mono text-xs px-1.5 py-0 h-5 flex-shrink-0">₹{item.price}</Badge>
                         </div>
