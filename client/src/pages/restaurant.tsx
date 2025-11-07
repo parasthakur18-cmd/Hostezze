@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ChefHat, Clock, CheckCircle, User, Phone, Bell, BellOff, Settings, Edit, Trash2, Plus } from "lucide-react";
+import { ChefHat, Clock, CheckCircle, User, Phone, Bell, BellOff, Settings, Edit, Trash2, Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ const statusColors = {
   preparing: "bg-chart-2 text-white",
   ready: "bg-chart-5 text-white",
   delivered: "bg-muted text-muted-foreground",
+  rejected: "bg-destructive text-destructive-foreground",
 };
 
 export default function Kitchen() {
@@ -161,15 +162,17 @@ export default function Kitchen() {
   };
 
   // Filter orders based on active tab
-  const allActiveOrders = orders?.filter((order) => order.status !== "delivered" && order.status !== "cancelled") || [];
+  const allActiveOrders = orders?.filter((order) => order.status !== "delivered" && order.status !== "cancelled" && order.status !== "rejected") || [];
   const pendingOrders = orders?.filter((order) => order.status === "pending") || [];
   const completedOrders = orders?.filter((order) => order.status === "delivered") || [];
+  const rejectedOrders = orders?.filter((order) => order.status === "rejected") || [];
   
   // Calculate counts for badges
   const orderCounts = {
     active: allActiveOrders.length,
     pending: pendingOrders.length,
     completed: completedOrders.length,
+    rejected: rejectedOrders.length,
   };
   
   // Get filtered orders based on active tab
@@ -180,6 +183,8 @@ export default function Kitchen() {
     filteredOrders = pendingOrders;
   } else if (activeTab === "completed") {
     filteredOrders = completedOrders;
+  } else if (activeTab === "rejected") {
+    filteredOrders = rejectedOrders;
   }
   
   // Group active orders by status for display
@@ -292,15 +297,26 @@ export default function Kitchen() {
                 <Edit className="h-4 w-4" />
               </Button>
               {order.status === "pending" && (
-                <Button
-                  className="flex-1"
-                  onClick={() => updateStatusMutation.mutate({ id: order.id, status: "preparing" })}
-                  disabled={updateStatusMutation.isPending}
-                  data-testid={`button-start-order-${order.id}`}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Start Preparing
-                </Button>
+                <>
+                  <Button
+                    variant="destructive"
+                    onClick={() => updateStatusMutation.mutate({ id: order.id, status: "rejected" })}
+                    disabled={updateStatusMutation.isPending}
+                    data-testid={`button-reject-order-${order.id}`}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Reject
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => updateStatusMutation.mutate({ id: order.id, status: "preparing" })}
+                    disabled={updateStatusMutation.isPending}
+                    data-testid={`button-start-order-${order.id}`}
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Start Preparing
+                  </Button>
+                </>
               )}
               {order.status === "preparing" && (
                 <Button
@@ -437,6 +453,9 @@ export default function Kitchen() {
           <TabsTrigger value="completed" data-testid="tab-completed-orders">
             Completed <Badge variant="secondary" className="ml-2">{orderCounts.completed}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="rejected" data-testid="tab-rejected-orders">
+            Rejected <Badge variant="secondary" className="ml-2">{orderCounts.rejected}</Badge>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-0">
@@ -501,7 +520,9 @@ export default function Kitchen() {
               {filteredOrders.length === 0 ? (
                 <Card className="p-12 text-center">
                   <p className="text-muted-foreground">
-                    {activeTab === "pending" ? "No pending orders" : "No completed orders"}
+                    {activeTab === "pending" && "No pending orders"}
+                    {activeTab === "completed" && "No completed orders"}
+                    {activeTab === "rejected" && "No rejected orders"}
                   </p>
                 </Card>
               ) : (

@@ -171,7 +171,10 @@ export default function FoodOrdersReport() {
     ? [] 
     : orders?.filter((order) => {
         const orderDate = new Date(order.createdAt);
-        return orderDate >= startDate && orderDate <= endDate;
+        const isInDateRange = orderDate >= startDate && orderDate <= endDate;
+        // Exclude rejected and cancelled orders from revenue calculations
+        const isValidStatus = order.status !== "rejected" && order.status !== "cancelled";
+        return isInDateRange && isValidStatus;
       });
 
   const getGuestName = (order: Order) => {
