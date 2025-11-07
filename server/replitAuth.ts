@@ -57,22 +57,37 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
-  // Check if this is the first user (should be admin)
-  const allUsers = await storage.getAllUsers();
-  const isFirstUser = allUsers.length === 0;
+  // Check if user already exists
+  const existingUser = await storage.getUser(claims["sub"]);
   
-  // Owner emails always get admin
+  // Owner emails always get admin (preserve admin status on re-login)
   const adminEmails = ['paras.thakur18@gmail.com', 'thepahadistays@gmail.com'];
   const isAdmin = adminEmails.includes(claims["email"]);
   
-  await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
-    role: (isFirstUser || isAdmin) ? 'admin' : 'staff', // First user or admin emails get admin
-  });
+  if (existingUser) {
+    // User exists - update profile info but preserve role unless they're an admin email
+    await storage.upsertUser({
+      id: claims["sub"],
+      email: claims["email"],
+      firstName: claims["first_name"],
+      lastName: claims["last_name"],
+      profileImageUrl: claims["profile_image_url"],
+      role: isAdmin ? 'admin' : existingUser.role, // Preserve existing role unless admin email
+    });
+  } else {
+    // New user - check if first user
+    const allUsers = await storage.getAllUsers();
+    const isFirstUser = allUsers.length === 0;
+    
+    await storage.upsertUser({
+      id: claims["sub"],
+      email: claims["email"],
+      firstName: claims["first_name"],
+      lastName: claims["last_name"],
+      profileImageUrl: claims["profile_image_url"],
+      role: (isFirstUser || isAdmin) ? 'admin' : 'staff', // First user or admin emails get admin
+    });
+  }
 }
 
 export async function setupAuth(app: Express) {
