@@ -17,7 +17,7 @@ The frontend is built with **React 18**, **TypeScript** (Vite), **Wouter** for r
 ### Feature Specifications
 -   **Multi-Property Management**: Manages multiple resort properties.
 -   **Booking & Guest Management**: Coordinates bookings, tracks guests, offers advanced pricing, and tracks booking sources and meal plans.
--   **WhatsApp Notifications System**: Comprehensive guest lifecycle notifications for booking confirmation, payment, check-in, and checkout via authkey.io, with Indian phone number normalization and configurable templates.
+-   **WhatsApp Notifications System**: Guest notifications for check-in and checkout via authkey.io, with Indian phone number normalization and configurable templates. Booking confirmation and payment notifications are available but currently disabled (can be re-enabled in code).
 -   **Travel Agent Management**: Tracks and manages travel agents with full CRUD operations, property-scoped databases, and data integrity validation.
 -   **Date-Based Room Availability**: Determines room availability by checking booking date overlaps across active bookings, supporting multiple bookings for different date ranges for the same room.
 -   **Group Bookings**: Allows creating group bookings for multiple rooms under a single guest.

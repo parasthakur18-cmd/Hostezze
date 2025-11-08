@@ -1056,9 +1056,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const booking = await storage.createBooking(data);
       
-      // Send WhatsApp confirmation (non-blocking - don't fail booking if WhatsApp fails)
+      // WhatsApp booking confirmation DISABLED per user request (only using check-in and checkout notifications)
+      // To re-enable, uncomment the block below
+      /*
       try {
-        // Get guest info
         const guest = await storage.getGuest(booking.guestId);
         
         if (!guest) {
@@ -1067,8 +1068,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.warn(`[WhatsApp] Booking #${booking.id} - Cannot send confirmation: guest ${booking.guestId} (${guest.fullName}) has no phone number`);
         } else {
           const guestName = guest.fullName || "Guest";
-          
-          // Get property info
           let propertyName = "Your Property";
           if (booking.roomId) {
             const room = await storage.getRoom(booking.roomId);
@@ -1084,7 +1083,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          // Get room numbers
           let roomNumbers = "TBD";
           if (booking.roomId) {
             const room = await storage.getRoom(booking.roomId);
@@ -1111,6 +1109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (whatsappError: any) {
         console.error(`[WhatsApp] Booking #${booking.id} - Notification failed (non-critical):`, whatsappError.message);
       }
+      */
       
       res.status(201).json(booking);
     } catch (error: any) {
@@ -1190,13 +1189,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const booking = await storage.updateBooking(parseInt(req.params.id), validatedData);
       
-      // Send WhatsApp payment confirmation if advance amount was updated
+      // WhatsApp payment confirmation DISABLED per user request (only using check-in and checkout notifications)
+      // To re-enable, uncomment the block below
+      /*
       if (validatedData.advanceAmount !== undefined && validatedData.advanceAmount !== existingBooking.advanceAmount) {
         try {
           const guest = await storage.getGuest(booking.guestId);
           
           if (guest && guest.phone) {
-            // Get property info
             let propertyName = "Your Property";
             if (booking.roomId) {
               const room = await storage.getRoom(booking.roomId);
@@ -1236,6 +1236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`[WhatsApp] Booking #${booking.id} - Payment notification failed (non-critical):`, whatsappError.message);
         }
       }
+      */
       
       res.json(booking);
     } catch (error: any) {
