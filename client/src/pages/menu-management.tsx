@@ -252,15 +252,16 @@ export default function MenuManagement() {
               Add Menu Item
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>{editingItem ? "Edit Menu Item" : "Add New Menu Item"}</DialogTitle>
               <DialogDescription>
                 {editingItem ? "Update the details below" : "Fill in the details to add a new menu item"}
               </DialogDescription>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <div className="overflow-y-auto max-h-[calc(90vh-10rem)] pr-2">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="propertyId"
@@ -436,6 +437,7 @@ export default function MenuManagement() {
                 </DialogFooter>
               </form>
             </Form>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
