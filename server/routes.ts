@@ -862,10 +862,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return null;
         }
 
-        // Calculate nights stayed
+        // Calculate nights stayed (use checkout date, not current date)
         const checkInDate = new Date(booking.checkInDate);
-        const now = new Date();
-        const nightsStayed = Math.max(1, Math.ceil((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const checkOutDate = new Date(booking.checkOutDate);
+        const nightsStayed = Math.max(1, Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)));
 
         // Calculate room charges - handle both single and group bookings
         let roomCharges = 0;
