@@ -651,27 +651,16 @@ function ItemCard({
       <Card>
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex flex-col gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={onMoveUp}
-                disabled={isFirst || !onMoveUp}
-                className="h-6 w-6"
-                data-testid={`button-move-up-${item.id}`}
-              >
-                <ArrowUp className="h-3 w-3" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={onMoveDown}
-                disabled={isLast || !onMoveDown}
-                className="h-6 w-6"
-                data-testid={`button-move-down-${item.id}`}
-              >
-                <ArrowDown className="h-3 w-3" />
-              </Button>
+            <div className="flex items-center gap-2 min-w-[80px]">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Order:</span>
+              <Input
+                type="number"
+                min="0"
+                value={item.displayOrder}
+                className="h-8 w-16 text-center"
+                disabled
+                data-testid={`text-order-${item.id}`}
+              />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
