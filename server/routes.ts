@@ -1737,7 +1737,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk update display order for menu items
   app.patch("/api/menu-items/reorder", isAuthenticated, async (req, res) => {
     try {
-      console.log("[Menu Reorder] Raw request body:", JSON.stringify(req.body, null, 2));
+      const fs = await import('fs/promises');
+      await fs.writeFile('/tmp/reorder-debug.txt', `Request body: ${JSON.stringify(req.body, null, 2)}\n`, { flag: 'a' });
       
       // Ensure IDs and displayOrder are converted to numbers
       const updates: { id: number; displayOrder: number }[] = req.body.map((item: any) => ({
@@ -1745,13 +1746,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         displayOrder: parseInt(String(item.displayOrder))
       }));
       
-      console.log("[Menu Reorder] Converted updates:", JSON.stringify(updates, null, 2));
+      await fs.writeFile('/tmp/reorder-debug.txt', `Converted updates: ${JSON.stringify(updates, null, 2)}\n`, { flag: 'a' });
       
       await storage.reorderMenuItems(updates);
       res.status(200).json({ success: true });
     } catch (error: any) {
-      console.error("[Menu Reorder Error]:", error);
-      console.error("[Menu Reorder Error Stack]:", error.stack);
+      const fs = await import('fs/promises');
+      await fs.writeFile('/tmp/reorder-debug.txt', `ERROR: ${error.message}\nSTACK: ${error.stack}\n`, { flag: 'a' });
       res.status(500).json({ message: error.message });
     }
   });
