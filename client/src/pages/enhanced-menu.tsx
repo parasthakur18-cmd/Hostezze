@@ -146,10 +146,23 @@ export default function EnhancedMenu() {
   // Reorder items mutation
   const reorderItemsMutation = useMutation({
     mutationFn: async (updates: { id: number; displayOrder: number }[]) => {
+      console.log("[Frontend] Sending reorder updates:", JSON.stringify(updates, null, 2));
       return await apiRequest("/api/menu-items/reorder", "PATCH", updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
+      toast({
+        title: "Success",
+        description: "Menu items reordered successfully",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("[Frontend] Reorder error:", error);
+      toast({
+        title: "Error",
+        description: `Failed to reorder items: ${error.message}`,
+        variant: "destructive",
+      });
     },
   });
 
