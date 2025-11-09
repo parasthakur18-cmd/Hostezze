@@ -260,6 +260,7 @@ export default function ActiveBookings() {
 
   // Calculate total amount with optional GST/Service Charge and manual charges
   const calculateTotalWithCharges = (booking: ActiveBooking, includeGst: boolean, includeServiceCharge: boolean, charges: Array<{ name: string; amount: string }>) => {
+    // GST and Service Charge apply ONLY to ROOM charges, NOT to food or manual charges
     const roomCharges = parseFloat(booking.charges.roomCharges);
     const foodCharges = parseFloat(booking.charges.foodCharges);
     const manualAmount = charges.reduce((sum, charge) => {
@@ -267,17 +268,15 @@ export default function ActiveBookings() {
       return sum + (isNaN(amount) ? 0 : amount);
     }, 0);
     
-    // Calculate subtotal (all charges before GST/Service Charge)
-    const subtotal = roomCharges + foodCharges + manualAmount;
-    let calculatedTotal = subtotal;
+    // Calculate total: room + food + manual charges + GST/Service Charge (on room only)
+    let calculatedTotal = roomCharges + foodCharges + manualAmount;
     
-    // Apply GST and Service Charge to ENTIRE subtotal (room + food + manual charges)
     if (includeGst) {
-      calculatedTotal += subtotal * 0.05; // Apply 5% GST to entire subtotal
+      calculatedTotal += roomCharges * 0.05; // Apply 5% GST to ROOM charges ONLY
     }
     
     if (includeServiceCharge) {
-      calculatedTotal += subtotal * 0.10; // Apply 10% Service Charge to entire subtotal
+      calculatedTotal += roomCharges * 0.10; // Apply 10% Service Charge to ROOM charges ONLY
     }
     
     return calculatedTotal;
