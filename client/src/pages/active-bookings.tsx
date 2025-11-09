@@ -268,18 +268,23 @@ export default function ActiveBookings() {
       return sum + (isNaN(amount) ? 0 : amount);
     }, 0);
     
-    // Calculate total: room + food + manual charges + GST/Service Charge (on room only)
-    let calculatedTotal = roomCharges + foodCharges + manualAmount;
+    // Calculate GST and Service Charge amounts (on ROOM charges only)
+    const gstAmount = includeGst ? roomCharges * 0.05 : 0;
+    const serviceChargeAmount = includeServiceCharge ? roomCharges * 0.10 : 0;
     
-    if (includeGst) {
-      calculatedTotal += roomCharges * 0.05; // Apply 5% GST to ROOM charges ONLY
-    }
+    // Calculate subtotal and total
+    const subtotal = roomCharges + foodCharges + manualAmount;
+    const grandTotal = subtotal + gstAmount + serviceChargeAmount;
     
-    if (includeServiceCharge) {
-      calculatedTotal += roomCharges * 0.10; // Apply 10% Service Charge to ROOM charges ONLY
-    }
-    
-    return calculatedTotal;
+    return {
+      subtotal,
+      gstAmount,
+      serviceChargeAmount,
+      grandTotal,
+      roomCharges,
+      foodCharges,
+      manualAmount,
+    };
   };
   
   // Add new charge entry
@@ -641,35 +646,48 @@ export default function ActiveBookings() {
                     ))}
                   </>
                 )}
-                <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                  <span>Total Amount</span>
-                  <span data-testid="text-checkout-total">
-                    ₹{calculateTotalWithCharges(
-                      checkoutDialog.booking, 
-                      includeGst, 
-                      includeServiceCharge,
-                      manualCharges
-                    ).toFixed(2)}
-                  </span>
-                </div>
                 {(() => {
-                  const calculatedTotal = calculateTotalWithCharges(
+                  const breakdown = calculateTotalWithCharges(
                     checkoutDialog.booking, 
                     includeGst, 
                     includeServiceCharge,
                     manualCharges
                   );
                   const discountAmt = calculateDiscount(
-                    calculatedTotal,
+                    breakdown.grandTotal,
                     discountType,
                     discountValue
                   );
-                  const finalTotal = calculatedTotal - discountAmt;
+                  const finalTotal = breakdown.grandTotal - discountAmt;
                   const advancePaid = parseFloat(checkoutDialog.booking.charges.advancePaid);
                   const balanceDue = finalTotal - advancePaid;
 
                   return (
                     <>
+                      <div className="flex justify-between font-medium pt-2 border-t">
+                        <span>Subtotal</span>
+                        <span>₹{breakdown.subtotal.toFixed(2)}</span>
+                      </div>
+                      
+                      {includeGst && breakdown.gstAmount > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">GST (5% on room charges only)</span>
+                          <span className="font-medium" data-testid="text-gst-amount">+₹{breakdown.gstAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {includeServiceCharge && breakdown.serviceChargeAmount > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Service Charge (10% on room charges only)</span>
+                          <span className="font-medium" data-testid="text-service-charge-amount">+₹{breakdown.serviceChargeAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                        <span>Total Amount</span>
+                        <span data-testid="text-checkout-total">₹{breakdown.grandTotal.toFixed(2)}</span>
+                      </div>
+                      
                       {discountAmt > 0 && (
                         <>
                           <div className="flex justify-between text-sm">
