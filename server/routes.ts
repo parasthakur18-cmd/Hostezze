@@ -2724,15 +2724,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestCheckIn = new Date(checkIn as string);
       const requestCheckOut = new Date(checkOut as string);
       
-      // Get all active bookings that might overlap with requested dates
-      // Include all statuses except cancelled and checked-out
+      // Get all bookings that might overlap with requested dates
+      // Only exclude cancelled bookings - we still need to check dates for checked-out bookings
+      // because a room might be checked out early but the original checkout date hasn't passed
       const allBookings = await db
         .select()
         .from(bookingsTable)
         .where(
           and(
             not(eq(bookingsTable.status, "cancelled")),
-            not(eq(bookingsTable.status, "checked-out")),
             // Booking overlaps if it's not completely before or after our dates
             not(
               or(
