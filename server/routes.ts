@@ -2724,6 +2724,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestCheckIn = new Date(checkIn as string);
       const requestCheckOut = new Date(checkOut as string);
       
+      // Validate dates
+      if (isNaN(requestCheckIn.getTime()) || isNaN(requestCheckOut.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+      
+      console.log('🔍 Availability check:', {
+        propertyId: parsedPropertyId,
+        requestCheckIn,
+        requestCheckOut,
+        checkInISO: requestCheckIn.toISOString(),
+        checkOutISO: requestCheckOut.toISOString()
+      });
+      
       // Get all bookings that might overlap with requested dates
       // Only exclude cancelled bookings - we still need to check dates for checked-out bookings
       // because a room might be checked out early but the original checkout date hasn't passed
@@ -2733,15 +2746,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(
           and(
             not(eq(bookingsTable.status, "cancelled")),
-            // Booking overlaps if it's not completely before or after our dates
-            not(
-              or(
-                sql`${bookingsTable.checkOutDate} <= ${requestCheckIn}`, // Booking ends before we start
-                sql`${bookingsTable.checkInDate} >= ${requestCheckOut}`  // Booking starts after we end
-              )
-            )
+            // Booking overlaps if checkout > requestCheckIn AND checkIn < requestCheckOut
+            sql`${bookingsTable.checkOutDate} > ${requestCheckIn}`,
+            sql`${bookingsTable.checkInDate} < ${requestCheckOut}`
           )
         );
+      
+      console.log('✅ Found overlapping bookings:', allBookings.length);
       
       // Filter out rooms that are fully booked during requested dates
       const availableRooms = allRooms.filter(room => {
@@ -2771,9 +2782,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return !hasOverlap;
       });
       
+      console.log('✅ Available rooms:', availableRooms.length);
       res.json(availableRooms);
     } catch (error: any) {
-      console.error('Availability error:', error.message);
+      console.error('❌ Availability error:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({ message: error.message });
     }
   });
