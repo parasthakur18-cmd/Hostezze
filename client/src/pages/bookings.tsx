@@ -184,10 +184,11 @@ export default function Bookings() {
     
     if (!availability || !rooms) {
       // Fallback to status-based filtering while loading
+      // Include both "available" and "cleaning" rooms (cleaning rooms can be booked for future dates)
       if (import.meta.env.DEV) {
         console.debug('[Availability] No availability data yet, using status filter fallback');
       }
-      return rooms?.filter(r => r.status === "available") || [];
+      return rooms?.filter(r => r.status === "available" || r.status === "cleaning") || [];
     }
 
     // Filter rooms based on availability
