@@ -1515,6 +1515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const balanceAmount = totalAmount - advancePaid;
 
       // Create/Update bill with server-calculated amounts
+      // When payment status is "paid", set balance to 0 (preserving advance amount for audit trail)
       const billData = {
         bookingId,
         guestId: booking.guestId,
@@ -1533,7 +1534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         discountAmount: discountAmount > 0 ? discountAmount.toFixed(2) : "0",
         totalAmount: totalAmount.toFixed(2),
         advancePaid: advancePaid.toFixed(2),
-        balanceAmount: balanceAmount.toFixed(2),
+        balanceAmount: "0.00", // Always 0 when checking out (payment collected)
         paymentStatus: "paid",
         paymentMethod,
         paidAt: new Date(),
