@@ -174,7 +174,7 @@ export default function NewEnquiry() {
       checkOutDate: data.checkOutDate,
       roomId: data.roomId && typeof data.roomId === 'number' ? data.roomId : null,
       numberOfGuests: data.numberOfGuests,
-      bedsBooked: selectedRoom?.roomCategory === "dormitory" ? data.numberOfGuests : null,
+      bedsBooked: selectedRoom?.roomType === "Dormitory" ? data.numberOfGuests : undefined,
       mealPlan: data.mealPlan,
       priceQuoted: data.priceQuoted !== undefined && data.priceQuoted !== null 
         ? data.priceQuoted.toString() 

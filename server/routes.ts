@@ -2743,9 +2743,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
       
-      // Filter out rooms that are booked during requested dates
+      // Filter out rooms that are fully booked during requested dates
       const availableRooms = allRooms.filter(room => {
-        // Check if this room has any overlapping bookings
+        // For dormitory rooms, check bed-level availability
+        if (room.roomType === "Dormitory" && room.totalBeds) {
+          // Get all overlapping bookings for this dorm room
+          const overlappingBookings = allBookings.filter(booking => 
+            (booking.roomId === room.id || booking.roomIds?.includes(room.id))
+          );
+          
+          // Calculate total beds booked during the requested dates
+          const bedsBookedCount = overlappingBookings.reduce((sum, booking) => {
+            // Use bedsBooked if available, otherwise assume 1 bed
+            const bookedBeds = booking.bedsBooked || 1;
+            return sum + bookedBeds;
+          }, 0);
+          
+          // Room is available if there are free beds
+          const availableBeds = room.totalBeds - bedsBookedCount;
+          return availableBeds > 0;
+        }
+        
+        // For regular rooms, any overlap means unavailable
         const hasOverlap = allBookings.some(booking => 
           (booking.roomId === room.id || booking.roomIds?.includes(room.id))
         );

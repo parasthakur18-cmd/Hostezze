@@ -226,6 +226,7 @@ export default function NewEnquiryCalendar() {
       roomId: bookingType === "single" ? selectedRoomId : null,
       roomIds: bookingType === "group" ? selectedRoomIds : undefined,
       isGroupEnquiry: bookingType === "group",
+      bedsBooked: selectedRoom?.roomType === "Dormitory" ? data.numberOfGuests : undefined,
       numberOfGuests: data.numberOfGuests,
       mealPlan: data.mealPlan,
       priceQuoted: data.priceQuoted?.toString() || null,
