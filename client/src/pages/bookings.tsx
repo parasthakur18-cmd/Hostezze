@@ -854,6 +854,16 @@ export default function Bookings() {
                       const selectedRoom = rooms?.find(r => r.id === selectedRoomId);
                       if (selectedRoom?.roomCategory === "dormitory") {
                         const remainingBeds = getRemainingBeds(selectedRoomId, false);
+                        // Only show bed input if there are beds available
+                        if (remainingBeds <= 0) {
+                          return (
+                            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                              <p className="text-sm text-destructive font-medium">
+                                This dormitory room is fully booked for the selected dates. Please choose different dates or another room.
+                              </p>
+                            </div>
+                          );
+                        }
                         return (
                           <FormField
                             control={form.control}
@@ -1559,6 +1569,16 @@ export default function Bookings() {
                     const selectedRoom = rooms?.find(r => r.id === selectedRoomId);
                     if (selectedRoom?.roomCategory === "dormitory") {
                       const remainingBeds = getRemainingBeds(selectedRoomId, true);
+                      // Only show bed input if there are beds available
+                      if (remainingBeds <= 0) {
+                        return (
+                          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                            <p className="text-sm text-destructive font-medium">
+                              This dormitory room is fully booked for the selected dates. Please choose different dates or another room.
+                            </p>
+                          </div>
+                        );
+                      }
                       return (
                         <FormField
                           control={editForm.control}
