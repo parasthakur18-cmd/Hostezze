@@ -97,14 +97,29 @@ export default function Bookings() {
     queryKey: ["/api/rooms"],
   });
 
+  // Helper to get default check-in time (2:00 PM today)
+  const getDefaultCheckIn = () => {
+    const date = new Date();
+    date.setHours(14, 0, 0, 0); // 2:00 PM
+    return date;
+  };
+
+  // Helper to get default checkout time (11:00 AM tomorrow)
+  const getDefaultCheckOut = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    date.setHours(11, 0, 0, 0); // 11:00 AM
+    return date;
+  };
+
   const form = useForm({
     // Don't use zodResolver because we create the guest first
     defaultValues: {
       propertyId: undefined as any,
       guestId: undefined as any,
       roomId: undefined as any,
-      checkInDate: new Date(),
-      checkOutDate: new Date(),
+      checkInDate: getDefaultCheckIn(),
+      checkOutDate: getDefaultCheckOut(),
       status: "pending",
       numberOfGuests: 1,
       customPrice: null,
@@ -122,8 +137,8 @@ export default function Bookings() {
       propertyId: undefined as any,
       guestId: undefined as any,
       roomId: undefined as any,
-      checkInDate: new Date(),
-      checkOutDate: new Date(),
+      checkInDate: getDefaultCheckIn(),
+      checkOutDate: getDefaultCheckOut(),
       status: "pending",
       numberOfGuests: 1,
       customPrice: null,
