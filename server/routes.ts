@@ -2436,8 +2436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allBills = await storage.getAllBills();
       let filteredBills = allBills.filter(bill => bill.paymentStatus === "pending");
       
-      // Filter by property for managers
-      if (req.user?.role !== "admin" && req.user?.assignedPropertyIds) {
+      // Filter by property for managers (admin sees all)
+      if (req.user?.role !== "admin" && req.user?.assignedPropertyIds && Array.isArray(req.user.assignedPropertyIds) && req.user.assignedPropertyIds.length > 0) {
         const userProperties = req.user.assignedPropertyIds;
         
         // Get bookings for all pending bills to check property
