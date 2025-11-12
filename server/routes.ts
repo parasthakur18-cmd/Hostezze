@@ -2360,7 +2360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (booking?.travelAgentId) {
             const agent = await storage.getTravelAgent(booking.travelAgentId);
-            agentName = agent?.agentName || null;
+            agentName = agent?.name || null;
           }
           
           return {
