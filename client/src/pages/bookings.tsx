@@ -51,9 +51,9 @@ export default function Bookings() {
   const [activeTab, setActiveTab] = useState("all");
   const [deleteBookingId, setDeleteBookingId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [bookingType, setBookingType] = useState<"single" | "group">("single");
+  const [bookingType, setBookingType] = useState<"single" | "group" | "dormitory">("single");
   const [selectedRoomIds, setSelectedRoomIds] = useState<number[]>([]);
-  const [editBookingType, setEditBookingType] = useState<"single" | "group">("single");
+  const [editBookingType, setEditBookingType] = useState<"single" | "group" | "dormitory">("single");
   const [editSelectedRoomIds, setEditSelectedRoomIds] = useState<number[]>([]);
   const [checkinBookingId, setCheckinBookingId] = useState<number | null>(null);
   const [checkinDialogOpen, setCheckinDialogOpen] = useState(false);
@@ -827,9 +827,10 @@ export default function Bookings() {
                   />
                 </div>
 
-                <Tabs value={bookingType} onValueChange={(value) => setBookingType(value as "single" | "group")} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                <Tabs value={bookingType} onValueChange={(value) => setBookingType(value as "single" | "group" | "dormitory")} className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="single" data-testid="tab-single-room">Single Room</TabsTrigger>
+                    <TabsTrigger value="dormitory" data-testid="tab-dormitory">Dormitory</TabsTrigger>
                     <TabsTrigger value="group" data-testid="tab-group-booking">Group Booking</TabsTrigger>
                   </TabsList>
                   <TabsContent value="single" className="mt-4">
@@ -1541,9 +1542,10 @@ export default function Bookings() {
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 pb-4">
               
-              <Tabs value={editBookingType} onValueChange={(value) => setEditBookingType(value as "single" | "group")} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+              <Tabs value={editBookingType} onValueChange={(value) => setEditBookingType(value as "single" | "group" | "dormitory")} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="single" data-testid="tab-edit-single-room">Single Room</TabsTrigger>
+                  <TabsTrigger value="dormitory" data-testid="tab-edit-dormitory">Dormitory</TabsTrigger>
                   <TabsTrigger value="group" data-testid="tab-edit-group-booking">Group Booking</TabsTrigger>
                 </TabsList>
                 <TabsContent value="single" className="mt-4">
