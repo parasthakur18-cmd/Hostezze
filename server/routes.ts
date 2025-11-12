@@ -2433,37 +2433,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all pending bills with guest and agent details  
   app.get("/api/bills/pending", isAuthenticated, async (req, res) => {
     try {
-      console.log("[/api/bills/pending] Starting request, user:", req.user);
-      
-      // Use raw SQL to bypass Drizzle ORM issues
-      const result = await db.execute(sql`
-        SELECT 
-          b.id,
-          b.booking_id as "bookingId",
-          b.guest_id as "guestId",
-          b.total_amount as "totalAmount",
-          b.balance_amount as "balanceAmount",
-          b.due_date as "dueDate",
-          b.pending_reason as "pendingReason",
-          b.created_at as "createdAt",
-          g.full_name as "guestName",
-          g.phone as "guestPhone",
-          ta.name as "agentName",
-          bk.travel_agent_id as "travelAgentId"
-        FROM bills b
-        JOIN guests g ON b.guest_id = g.id
-        JOIN bookings bk ON b.booking_id = bk.id
-        LEFT JOIN travel_agents ta ON bk.travel_agent_id = ta.id
-        WHERE b.payment_status = 'pending'
-        ORDER BY b.created_at DESC
-      `);
-      
-      console.log("[/api/bills/pending] Query successful, rows:", result.rows.length);
-      res.json(result.rows);
+      // Use getAllBills and filter for pending status
+      const allBills = await storage.getAllBills();
+      const pendingBills = allBills.filter((bill: any) => bill.paymentStatus === 'pending');
+      res.json(pendingBills);
     } catch (error: any) {
-      console.error("[/api/bills/pending] FULL ERROR:", error);
-      console.error("[/api/bills/pending] Error message:", error.message);
-      console.error("[/api/bills/pending] Error stack:", error.stack);
+      console.error("[/api/bills/pending] Error:", error.message);
       res.status(500).json({ message: error.message });
     }
   });
