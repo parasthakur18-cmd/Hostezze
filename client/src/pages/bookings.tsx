@@ -568,12 +568,18 @@ export default function Bookings() {
   const handleEditBooking = (booking: Booking) => {
     setEditingBooking(booking);
     
-    // Initialize booking type and room selection based on group booking status
+    // Initialize booking type and room selection based on booking characteristics
     if (booking.isGroupBooking && booking.roomIds && booking.roomIds.length > 0) {
       setEditBookingType("group");
       setEditSelectedRoomIds(booking.roomIds);
     } else {
-      setEditBookingType("single");
+      // Check if this is a dormitory booking
+      const room = rooms?.find(r => r.id === booking.roomId);
+      if (room?.roomCategory === "dormitory") {
+        setEditBookingType("dormitory");
+      } else {
+        setEditBookingType("single");
+      }
       setEditSelectedRoomIds([]);
     }
     
@@ -1623,9 +1629,9 @@ export default function Bookings() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {/* Show available rooms plus the currently selected room */}
+                            {/* Show available non-dormitory rooms plus the currently selected room */}
                             {(() => {
-                              const availableRooms = getAvailableRooms(true);
+                              const availableRooms = getRoomsForBookingType("single", { isEditMode: true });
                               const currentRoom = editingBooking?.roomId ? rooms?.find(r => r.id === editingBooking.roomId) : null;
                               const roomsToShow = currentRoom && !availableRooms.find(r => r.id === currentRoom.id)
                                 ? [currentRoom, ...availableRooms]
@@ -1633,15 +1639,10 @@ export default function Bookings() {
                               return roomsToShow.map((room) => {
                                 const property = properties?.find(p => p.id === room.propertyId);
                                 const isCurrentRoom = editingBooking?.roomId === room.id;
-                                const roomDescription = room.roomCategory === "dormitory" 
-                                  ? "Dormitory"
-                                  : (room.roomType || "Standard");
-                                const priceText = room.roomCategory === "dormitory" 
-                                  ? `₹${room.pricePerNight}/bed/night`
-                                  : `₹${room.pricePerNight}/night`;
+                                const roomDescription = room.roomType || "Standard";
                                 return (
                                   <SelectItem key={room.id} value={room.id.toString()}>
-                                    {property?.name} - Room {room.roomNumber} ({roomDescription}) - {priceText}
+                                    {property?.name} - Room {room.roomNumber} ({roomDescription}) - ₹{room.pricePerNight}/night
                                     {isCurrentRoom && " (Current)"}
                                   </SelectItem>
                                 );
@@ -1653,52 +1654,52 @@ export default function Bookings() {
                       </FormItem>
                     )}
                   />
-                  {/* Bed selection for dormitory rooms */}
-                  {(() => {
-                    const selectedRoomId = editForm.watch("roomId");
-                    const selectedRoom = rooms?.find(r => r.id === selectedRoomId);
-                    if (selectedRoom?.roomCategory === "dormitory") {
-                      // Show bed selector for dormitory rooms
-                      const maxBeds = selectedRoom.totalBeds || 6;
-                      if (false) { // Temporarily disabled - will be reimplemented with new API
-                        return (
-                          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                            <p className="text-sm text-destructive font-medium">
-                              This dormitory room is fully booked for the selected dates. Please choose different dates or another room.
-                            </p>
-                          </div>
-                        );
-                      }
-                      return (
-                        <FormField
-                          control={editForm.control}
-                          name="bedsBooked"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Number of Beds to Book</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  max={remainingBeds}
-                                  placeholder="Enter number of beds"
-                                  value={field.value || ""}
-                                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : "")}
-                                  data-testid="input-edit-beds-booked"
-                                />
-                              </FormControl>
-                              <p className="text-xs text-muted-foreground">
-                                Available beds: {remainingBeds}/{selectedRoom.totalBeds || 0} • Price: ₹{selectedRoom.pricePerNight}/bed/night
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      );
-                    }
-                    return null;
-                  })()}
                 </TabsContent>
+
+                {/* DORMITORY TAB - For editing dorm bed bookings */}
+                <TabsContent value="dormitory" className="mt-4">
+                  <FormField
+                    control={editForm.control}
+                    name="roomId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Dormitory Room</FormLabel>
+                        <Select
+                          onValueChange={(value) => {
+                            const roomId = parseInt(value);
+                            field.onChange(roomId);
+                            const selectedRoom = rooms?.find(r => r.id === roomId);
+                            if (selectedRoom) {
+                              editForm.setValue("propertyId", selectedRoom.propertyId);
+                            }
+                          }}
+                          value={field.value ? field.value.toString() : undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-dormitory-room">
+                              <SelectValue placeholder="Select dormitory room" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {getRoomsForBookingType("dormitory", { isEditMode: true }).map((room) => {
+                              const property = properties?.find(p => p.id === room.propertyId);
+                              const isCurrentRoom = editingBooking?.roomId === room.id;
+                              return (
+                                <SelectItem key={room.id} value={room.id.toString()}>
+                                  {property?.name} - Room {room.roomNumber} (Dormitory) - ₹{room.pricePerNight}/bed/night
+                                  {isCurrentRoom && " (Current)"}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {/* Note: Bed selection for edit mode can be added later with bed inventory API */}
+                </TabsContent>
+
                 <TabsContent value="group" className="mt-4">
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
@@ -1714,10 +1715,10 @@ export default function Bookings() {
                             <th className="p-2 text-left text-xs font-medium">
                               <input
                                 type="checkbox"
-                                checked={editSelectedRoomIds.length === getAvailableRooms(true).length && getAvailableRooms(true).length > 0}
+                                checked={editSelectedRoomIds.length === getRoomsForBookingType("group", { isEditMode: true }).length && getRoomsForBookingType("group", { isEditMode: true }).length > 0}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    setEditSelectedRoomIds(getAvailableRooms(true).map(r => r.id));
+                                    setEditSelectedRoomIds(getRoomsForBookingType("group", { isEditMode: true }).map(r => r.id));
                                   } else {
                                     setEditSelectedRoomIds([]);
                                   }
@@ -1732,15 +1733,11 @@ export default function Bookings() {
                           </tr>
                         </thead>
                         <tbody>
-                          {getAvailableRooms(true).map((room) => {
+                          {getRoomsForBookingType("group", { isEditMode: true }).map((room) => {
                             const property = properties?.find(p => p.id === room.propertyId);
                             const isSelected = editSelectedRoomIds.includes(room.id);
-                            const roomDescription = room.roomCategory === "dormitory" 
-                              ? "Dormitory"
-                              : (room.roomType || "Standard");
-                            const priceText = room.roomCategory === "dormitory" 
-                              ? `₹${room.pricePerNight}/bed/night`
-                              : `₹${room.pricePerNight}/night`;
+                            const roomDescription = room.roomType || "Standard";
+                            const priceText = `₹${room.pricePerNight}/night`;
                             return (
                               <tr 
                                 key={room.id} 
