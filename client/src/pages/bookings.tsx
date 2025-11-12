@@ -910,12 +910,20 @@ export default function Bookings() {
                                     max={bedInventory?.remainingBeds || selectedRoom.totalBeds || 6}
                                     placeholder="Enter number of beds"
                                     value={field.value || ""}
-                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : "")}
+                                    onChange={(e) => {
+                                      const maxBeds = bedInventory?.remainingBeds || selectedRoom.totalBeds || 6;
+                                      const inputValue = parseInt(e.target.value);
+                                      if (e.target.value && inputValue > maxBeds) {
+                                        field.onChange(maxBeds);
+                                      } else {
+                                        field.onChange(e.target.value ? inputValue : "");
+                                      }
+                                    }}
                                     data-testid="input-beds-booked"
                                   />
                                 </FormControl>
                                 <p className="text-xs text-muted-foreground">
-                                  Price: ₹{selectedRoom.pricePerNight}/bed/night
+                                  Price: ₹{selectedRoom.pricePerNight}/bed/night • Max: {bedInventory?.remainingBeds || selectedRoom.totalBeds || 6} beds
                                 </p>
                                 <FormMessage />
                               </FormItem>
