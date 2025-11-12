@@ -231,6 +231,23 @@ export default function Bookings() {
     return availableRooms;
   };
 
+  // Helper to filter rooms by booking type (dormitory vs non-dormitory)
+  const filterRoomsByBookingType = (roomsList: Room[], type: "single" | "group" | "dormitory") => {
+    if (type === "dormitory") {
+      // Show only dormitory rooms
+      return roomsList.filter(r => r.roomCategory === "dormitory");
+    } else {
+      // For single and group bookings, show only non-dormitory rooms
+      return roomsList.filter(r => r.roomCategory !== "dormitory");
+    }
+  };
+
+  // Composed helper: get rooms filtered by both availability and booking type
+  const getRoomsForBookingType = (type: "single" | "group" | "dormitory", options: { isEditMode?: boolean } = {}) => {
+    const availableRooms = getAvailableRooms(options.isEditMode || false);
+    return filterRoomsByBookingType(availableRooms, type);
+  };
+
   // NEW: Fetch bed inventory for selected dormitory room
   const selectedRoomId = form.watch("roomId");
   const selectedRoom = rooms?.find(r => r.id === selectedRoomId);
@@ -857,17 +874,12 @@ export default function Bookings() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {getAvailableRooms(false).map((room) => {
+                              {getRoomsForBookingType("single", { isEditMode: false }).map((room) => {
                                 const property = properties?.find(p => p.id === room.propertyId);
-                                const roomDescription = room.roomCategory === "dormitory" 
-                                  ? "Dormitory"
-                                  : (room.roomType || "Standard");
-                                const priceText = room.roomCategory === "dormitory" 
-                                  ? `₹${room.pricePerNight}/bed/night`
-                                  : `₹${room.pricePerNight}/night`;
+                                const roomDescription = room.roomType || "Standard";
                                 return (
                                   <SelectItem key={room.id} value={room.id.toString()}>
-                                    {property?.name} - Room {room.roomNumber} ({roomDescription}) - {priceText}
+                                    {property?.name} - Room {room.roomNumber} ({roomDescription}) - ₹{room.pricePerNight}/night
                                   </SelectItem>
                                 );
                               })}
@@ -877,7 +889,49 @@ export default function Bookings() {
                         </FormItem>
                       )}
                     />
-                    {/* Bed selection for dormitory rooms - NEW SIMPLIFIED VERSION */}
+                  </TabsContent>
+
+                  {/* DORMITORY TAB - For booking dorm beds */}
+                  <TabsContent value="dormitory" className="mt-4">
+                    <FormField
+                      control={form.control}
+                      name="roomId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dormitory Room</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              const roomId = parseInt(value);
+                              field.onChange(roomId);
+                              const selectedRoom = rooms?.find(r => r.id === roomId);
+                              if (selectedRoom) {
+                                form.setValue("propertyId", selectedRoom.propertyId);
+                              }
+                            }}
+                            value={field.value ? field.value.toString() : undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-dormitory-room">
+                                <SelectValue placeholder="Select dormitory room" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {getRoomsForBookingType("dormitory", { isEditMode: false }).map((room) => {
+                                const property = properties?.find(p => p.id === room.propertyId);
+                                return (
+                                  <SelectItem key={room.id} value={room.id.toString()}>
+                                    {property?.name} - Room {room.roomNumber} (Dormitory) - ₹{room.pricePerNight}/bed/night
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Bed selection UI for dormitory */}
                     {selectedRoom?.roomCategory === "dormitory" && (
                       <div className="space-y-3">
                         {bedInventory && (
@@ -934,6 +988,7 @@ export default function Bookings() {
                       </div>
                     )}
                   </TabsContent>
+
                   <TabsContent value="group" className="mt-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
@@ -949,10 +1004,10 @@ export default function Bookings() {
                               <th className="p-2 text-left text-xs font-medium">
                                 <input
                                   type="checkbox"
-                                  checked={selectedRoomIds.length === getAvailableRooms(false).length && getAvailableRooms(false).length > 0}
+                                  checked={selectedRoomIds.length === getRoomsForBookingType("group", { isEditMode: false }).length && getRoomsForBookingType("group", { isEditMode: false }).length > 0}
                                   onChange={(e) => {
                                     if (e.target.checked) {
-                                      setSelectedRoomIds(getAvailableRooms(false).map(r => r.id));
+                                      setSelectedRoomIds(getRoomsForBookingType("group", { isEditMode: false }).map(r => r.id));
                                     } else {
                                       setSelectedRoomIds([]);
                                     }
@@ -967,15 +1022,11 @@ export default function Bookings() {
                             </tr>
                           </thead>
                           <tbody>
-                            {getAvailableRooms(false).map((room) => {
+                            {getRoomsForBookingType("group", { isEditMode: false }).map((room) => {
                               const property = properties?.find(p => p.id === room.propertyId);
                               const isSelected = selectedRoomIds.includes(room.id);
-                              const roomDescription = room.roomCategory === "dormitory" 
-                                ? "Dormitory"
-                                : (room.roomType || "Standard");
-                              const priceText = room.roomCategory === "dormitory" 
-                                ? `₹${room.pricePerNight}/bed/night`
-                                : `₹${room.pricePerNight}/night`;
+                              const roomDescription = room.roomType || "Standard";
+                              const priceText = `₹${room.pricePerNight}/night`;
                               return (
                                 <tr 
                                   key={room.id} 
