@@ -862,7 +862,16 @@ export class DatabaseStorage implements IStorage {
 
   // Bill operations
   async getAllBills(): Promise<Bill[]> {
-    return await db.select().from(bills).orderBy(desc(bills.createdAt));
+    try {
+      console.log("[Storage] getAllBills - starting query");
+      const result = await db.select().from(bills).orderBy(desc(bills.createdAt));
+      console.log("[Storage] getAllBills - success, count:", result.length);
+      return result;
+    } catch (error: any) {
+      console.error("[Storage] getAllBills - ERROR:", error.message);
+      console.error("[Storage] getAllBills - Stack:", error.stack);
+      throw error;
+    }
   }
 
   async getBill(id: number): Promise<Bill | undefined> {
