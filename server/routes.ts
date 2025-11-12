@@ -1400,11 +1400,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Checkout endpoint
   app.post("/api/bookings/checkout", isAuthenticated, async (req, res) => {
     try {
-      const { bookingId, paymentMethod, discountType, discountValue, discountAppliesTo = "total", includeGst = true, includeServiceCharge = true, manualCharges } = req.body;
+      const { bookingId, paymentMethod, paymentStatus = "paid", dueDate, pendingReason, discountType, discountValue, discountAppliesTo = "total", includeGst = true, includeServiceCharge = true, manualCharges } = req.body;
       
       // Validate input
-      if (!bookingId || !paymentMethod) {
-        return res.status(400).json({ message: "Booking ID and payment method are required" });
+      if (!bookingId) {
+        return res.status(400).json({ message: "Booking ID is required" });
+      }
+      
+      // Payment method is required only when marking as paid
+      if (paymentStatus === "paid" && !paymentMethod) {
+        return res.status(400).json({ message: "Payment method is required when marking as paid" });
       }
 
       // Fetch booking
@@ -1515,7 +1520,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const balanceAmount = totalAmount - advancePaid;
 
       // Create/Update bill with server-calculated amounts
-      // When payment status is "paid", set balance to 0 (preserving advance amount for audit trail)
+      // When payment status is "paid", set balance to 0 (payment collected)
+      // When payment status is "pending", keep calculated balance (payment to be collected later)
       const billData = {
         bookingId,
         guestId: booking.guestId,
@@ -1534,10 +1540,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         discountAmount: discountAmount > 0 ? discountAmount.toFixed(2) : "0",
         totalAmount: totalAmount.toFixed(2),
         advancePaid: advancePaid.toFixed(2),
-        balanceAmount: "0.00", // Always 0 when checking out (payment collected)
-        paymentStatus: "paid",
-        paymentMethod,
-        paidAt: new Date(),
+        balanceAmount: paymentStatus === "paid" ? "0.00" : balanceAmount.toFixed(2),
+        paymentStatus: paymentStatus,
+        paymentMethod: paymentStatus === "paid" ? paymentMethod : null,
+        paidAt: paymentStatus === "paid" ? new Date() : null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        pendingReason: pendingReason || null,
       };
       
       const bill = await storage.createOrUpdateBill(billData);
@@ -2333,6 +2341,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get all pending bills with guest and agent details
+  app.get("/api/bills/pending", isAuthenticated, async (req, res) => {
+    try {
+      const allBills = await storage.getAllBills();
+      const pendingBills = allBills.filter(bill => bill.paymentStatus === "pending");
+      
+      // Enrich with guest, booking, and agent details
+      const enrichedBills = await Promise.all(
+        pendingBills.map(async (bill) => {
+          const guest = await storage.getGuest(bill.guestId);
+          const booking = await storage.getBooking(bill.bookingId);
+          let agentName = null;
+          
+          if (booking?.travelAgentId) {
+            const agent = await storage.getTravelAgent(booking.travelAgentId);
+            agentName = agent?.agentName || null;
+          }
+          
+          return {
+            ...bill,
+            guestName: guest?.fullName || "Unknown Guest",
+            guestPhone: guest?.phone || null,
+            agentName,
+            travelAgentId: booking?.travelAgentId || null,
+          };
+        })
+      );
+      
+      res.json(enrichedBills);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Mark a bill as paid
+  app.post("/api/bills/:id/mark-paid", isAuthenticated, async (req, res) => {
+    try {
+      const billId = parseInt(req.params.id);
+      const { paymentMethod } = req.body;
+      
+      if (!paymentMethod) {
+        return res.status(400).json({ message: "Payment method is required" });
+      }
+      
+      const bill = await storage.getBill(billId);
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      
+      // Update bill to paid status
+      const updatedBill = await storage.updateBill(billId, {
+        paymentStatus: "paid",
+        paymentMethod,
+        paidAt: new Date(),
+        balanceAmount: "0.00",
+      });
+      
+      res.json(updatedBill);
+    } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
