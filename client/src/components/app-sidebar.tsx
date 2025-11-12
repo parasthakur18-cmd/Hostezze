@@ -26,6 +26,7 @@ import {
   QrCode,
   DollarSign,
   Briefcase,
+  ClockAlert,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -62,6 +63,7 @@ const adminMenuItems = [
   { title: "Booking Analytics", url: "/booking-analytics", icon: BarChart3 },
   { title: "Add-ons", url: "/addons", icon: Plus },
   { title: "Billing", url: "/billing", icon: Receipt },
+  { title: "Pending Payments", url: "/pending-payments", icon: ClockAlert },
   { title: "Leases", url: "/leases", icon: IndianRupee },
   { title: "Expenses", url: "/expenses", icon: FileText },
   { title: "Financials", url: "/financials", icon: TrendingUp },
@@ -86,6 +88,7 @@ const managerMenuItems = [
   { title: "Menu Management", url: "/enhanced-menu", icon: MenuSquare },
   { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
   { title: "Billing", url: "/billing", icon: Receipt },
+  { title: "Pending Payments", url: "/pending-payments", icon: ClockAlert },
   { title: "QR Codes", url: "/qr-codes", icon: QrCode },
   { title: "Add-ons", url: "/addons", icon: Plus },
   { title: "Expenses", url: "/expenses", icon: FileText },

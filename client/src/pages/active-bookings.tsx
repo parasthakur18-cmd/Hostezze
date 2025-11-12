@@ -86,6 +86,9 @@ export default function ActiveBookings() {
     booking: null,
   });
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [paymentStatus, setPaymentStatus] = useState<string>("paid");
+  const [dueDate, setDueDate] = useState<string>("");
+  const [pendingReason, setPendingReason] = useState<string>("");
   const [discountType, setDiscountType] = useState<string>("none");
   const [discountValue, setDiscountValue] = useState<string>("");
   const [discountAppliesTo, setDiscountAppliesTo] = useState<string>("total");
@@ -235,7 +238,10 @@ export default function ActiveBookings() {
     
     checkoutMutation.mutate({
       bookingId: checkoutDialog.booking.id,
-      paymentMethod,
+      paymentMethod: paymentStatus === "paid" ? paymentMethod : undefined,
+      paymentStatus,
+      dueDate: paymentStatus === "pending" && dueDate ? dueDate : undefined,
+      pendingReason: paymentStatus === "pending" && pendingReason ? pendingReason : undefined,
       discountType: discountType === "none" ? undefined : discountType,
       discountValue: discountType === "none" || !discountValue ? undefined : parseFloat(discountValue),
       discountAppliesTo: discountType === "none" ? undefined : discountAppliesTo,
@@ -952,19 +958,70 @@ export default function ActiveBookings() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="payment-method">Payment Method</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger id="payment-method" data-testid="select-payment-method">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="card">Card</SelectItem>
-                    <SelectItem value="upi">UPI</SelectItem>
-                    <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-2">
+                  <Label htmlFor="payment-status">Payment Status *</Label>
+                  <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                    <SelectTrigger id="payment-status" data-testid="select-payment-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="paid">Paid (Payment Collected)</SelectItem>
+                      <SelectItem value="pending">Pending (To be collected later)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {paymentStatus === "paid" 
+                      ? "Payment has been collected from the guest" 
+                      : "Payment will be collected later (useful for travel agents with credit terms)"}
+                  </p>
+                </div>
+
+                {paymentStatus === "paid" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-method">Payment Method *</Label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger id="payment-method" data-testid="select-payment-method">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {paymentStatus === "pending" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="due-date">Due Date (Optional)</Label>
+                      <input
+                        id="due-date"
+                        type="date"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        data-testid="input-due-date"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pending-reason">Reason for Pending Payment (Optional)</Label>
+                      <input
+                        id="pending-reason"
+                        type="text"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="e.g., Travel agent - monthly billing"
+                        value={pendingReason}
+                        onChange={(e) => setPendingReason(e.target.value)}
+                        data-testid="input-pending-reason"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

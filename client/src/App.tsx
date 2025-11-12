@@ -40,6 +40,7 @@ import BookingAnalytics from "@/pages/booking-analytics";
 import QRCodes from "@/pages/qr-codes";
 import Salaries from "@/pages/salaries";
 import TravelAgents from "@/pages/travel-agents";
+import PendingPayments from "@/pages/pending-payments";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -83,6 +84,7 @@ function Router() {
           <Route path="/enquiries" component={Enquiries} />
           <Route path="/new-enquiry" component={NewEnquiry} />
           <Route path="/billing" component={Billing} />
+          <Route path="/pending-payments" component={PendingPayments} />
           <Route path="/leases" component={Leases} />
           <Route path="/expenses" component={Expenses} />
           <Route path="/financials" component={Financials} />
