@@ -131,9 +131,12 @@ export default function ActiveBookings() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async ({ bookingId, paymentMethod, discountType, discountValue, discountAppliesTo, includeGst, includeServiceCharge, manualCharges }: { 
+    mutationFn: async ({ bookingId, paymentMethod, paymentStatus, dueDate, pendingReason, discountType, discountValue, discountAppliesTo, includeGst, includeServiceCharge, manualCharges }: { 
       bookingId: number; 
-      paymentMethod: string;
+      paymentMethod?: string;
+      paymentStatus: string;
+      dueDate?: string;
+      pendingReason?: string;
       discountType?: string;
       discountValue?: number;
       discountAppliesTo?: string;
@@ -143,7 +146,10 @@ export default function ActiveBookings() {
     }) => {
       return await apiRequest("/api/bookings/checkout", "POST", { 
         bookingId, 
-        paymentMethod,
+        paymentMethod: paymentStatus === "paid" ? paymentMethod : null,
+        paymentStatus,
+        dueDate: paymentStatus === "pending" ? dueDate : null,
+        pendingReason: paymentStatus === "pending" ? pendingReason : null,
         discountType: discountType === "none" ? null : discountType,
         discountValue: discountType === "none" ? null : discountValue,
         discountAppliesTo: discountType === "none" ? null : discountAppliesTo,
@@ -155,12 +161,16 @@ export default function ActiveBookings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings/active"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bills/pending"] });
       toast({
         title: "Checkout Successful",
         description: "Guest has been checked out and bill has been generated",
       });
       setCheckoutDialog({ open: false, booking: null });
       setPaymentMethod("cash");
+      setPaymentStatus("paid");
+      setDueDate("");
+      setPendingReason("");
       setDiscountType("none");
       setDiscountValue("");
       setDiscountAppliesTo("total");
