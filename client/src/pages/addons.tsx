@@ -41,6 +41,10 @@ const serviceFormSchema = insertExtraServiceSchema.extend({
   amount: z.string().min(1, "Amount is required"),
   serviceDate: z.string().min(1, "Service date is required"),
   bookingId: z.number().min(1, "Booking is required"),
+  commission: z.string().optional(),
+  vendorName: z.string().optional(),
+  vendorContact: z.string().optional(),
+  description: z.string().optional(),
 });
 
 const serviceTypeIcons: Record<string, any> = {
@@ -55,12 +59,14 @@ const serviceTypeLabels: Record<string, string> = {
   guide: "Local Guide",
   adventure: "Adventure Package",
   partner_commission: "Partner Commission",
+  other: "Other/Custom Service",
 };
 
 export default function AddOnServices() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
+  const [showCustomServiceType, setShowCustomServiceType] = useState(false);
 
   const { data: services = [], isLoading } = useQuery<ExtraService[]>({
     queryKey: ["/api/extra-services"],
@@ -85,12 +91,15 @@ export default function AddOnServices() {
     },
   });
 
+  // Watch the serviceType field to show/hide custom input
+  const selectedServiceType = form.watch("serviceType");
+
   const createServiceMutation = useMutation({
     mutationFn: async (data: z.infer<typeof serviceFormSchema>) => {
       return await apiRequest("/api/extra-services", "POST", {
         ...data,
         amount: data.amount,
-        commission: data.commission || undefined,
+        commission: data.commission || null,
       });
     },
     onSuccess: () => {
@@ -219,7 +228,13 @@ export default function AddOnServices() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Service Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setShowCustomServiceType(value === "other");
+                          }} 
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-service-type">
                               <SelectValue />
@@ -230,12 +245,34 @@ export default function AddOnServices() {
                             <SelectItem value="guide">Local Guide</SelectItem>
                             <SelectItem value="adventure">Adventure Package</SelectItem>
                             <SelectItem value="partner_commission">Partner Service Commission</SelectItem>
+                            <SelectItem value="other">Other/Custom Service</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {/* Show custom service type input when "Other" is selected */}
+                  {selectedServiceType === "other" && (
+                    <FormItem>
+                      <FormLabel>Custom Service Type Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Bike Rental, Massage, Laundry"
+                          onChange={(e) => {
+                            // Store custom type in serviceName field temporarily
+                            const customType = e.target.value;
+                            form.setValue("serviceType", customType || "other");
+                          }}
+                          data-testid="input-custom-service-type"
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Enter your custom service type (e.g., "Bike Rental", "Spa Service")
+                      </p>
+                    </FormItem>
+                  )}
 
                   <FormField
                     control={form.control}
