@@ -49,7 +49,7 @@ The frontend is built with **React 18**, **TypeScript** (Vite), **Wouter** for r
 -   **Backend**: Express.js, Node.js, TypeScript, RESTful API.
 -   **Database**: PostgreSQL (Neon serverless) with Drizzle ORM.
 -   **Authentication**: Replit Auth, OpenID Connect, Passport.js, session-based via secure HTTP-only cookies, with auto-user creation.
--   **Authorization**: Role-based (admin, manager, staff, kitchen) with multi-property assignments. Managers and kitchen users have property-scoped data access.
+-   **Authorization**: Role-based (admin, manager, staff, kitchen) with multi-property assignments. Managers have **view-only access** to financial data (Billing, Pending Payments, Expenses) for their assigned properties and cannot access Leases, Financials/P&L, Analytics, or Salaries (admin-only). Backend enforces admin-only role checks on all bill modification endpoints (POST /api/bills, PATCH /api/bills/:id, POST /api/bills/merge, POST /api/bills/:id/mark-paid).
 -   **Multi-Property Assignment System**: Users can be assigned to multiple properties via an integer array, with all filtering logic updated to support array-based authorization and property ownership enforcement on all mutations.
 -   **Data Validation**: Client-side with Zod, server-side using shared Zod schemas.
 -   **Security**: HTTPS-only cookies, environment variable-secured session secrets, CSRF protection, and least-privilege access control.
