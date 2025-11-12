@@ -456,7 +456,7 @@ export default function Bookings() {
     }
 
     // Validate room selection based on booking type
-    if (bookingType === "single") {
+    if (bookingType === "single" || bookingType === "dormitory") {
       if (!data.roomId) {
         toast({
           title: "Error",
@@ -465,7 +465,7 @@ export default function Bookings() {
         });
         return;
       }
-    } else {
+    } else if (bookingType === "group") {
       // Group booking
       if (selectedRoomIds.length === 0) {
         toast({
