@@ -41,11 +41,14 @@ import {
   SidebarFooter,
   SidebarHeader,
   useSidebar,
+  SidebarGroupAction,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
-const adminMenuItems = [
+const adminOperationsItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Properties", url: "/properties", icon: Building2 },
   { title: "Rooms", url: "/rooms", icon: Hotel },
@@ -62,6 +65,12 @@ const adminMenuItems = [
   { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
   { title: "Booking Analytics", url: "/booking-analytics", icon: BarChart3 },
   { title: "Add-ons", url: "/addons", icon: Plus },
+  { title: "Users", url: "/users", icon: UserCog },
+  { title: "QR Codes", url: "/qr-codes", icon: QrCode },
+  { title: "Settings", url: "/settings", icon: Settings },
+];
+
+const adminFinanceItems = [
   { title: "Billing", url: "/billing", icon: Receipt },
   { title: "Pending Payments", url: "/pending-payments", icon: ClockAlert },
   { title: "Leases", url: "/leases", icon: IndianRupee },
@@ -69,12 +78,9 @@ const adminMenuItems = [
   { title: "Financials", url: "/financials", icon: TrendingUp },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Salaries", url: "/salaries", icon: DollarSign },
-  { title: "Users", url: "/users", icon: UserCog },
-  { title: "QR Codes", url: "/qr-codes", icon: QrCode },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-const managerMenuItems = [
+const managerOperationsItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Rooms", url: "/rooms", icon: Hotel },
   { title: "Bookings", url: "/bookings", icon: Calendar },
@@ -87,10 +93,13 @@ const managerMenuItems = [
   { title: "Quick Order", url: "/quick-order", icon: Phone },
   { title: "Menu Management", url: "/enhanced-menu", icon: MenuSquare },
   { title: "Food Orders Report", url: "/food-orders-report", icon: FileBarChart },
-  { title: "Billing", url: "/billing", icon: Receipt },
-  { title: "Pending Payments", url: "/pending-payments", icon: ClockAlert },
   { title: "QR Codes", url: "/qr-codes", icon: QrCode },
   { title: "Add-ons", url: "/addons", icon: Plus },
+];
+
+const managerFinanceItems = [
+  { title: "Billing", url: "/billing", icon: Receipt },
+  { title: "Pending Payments", url: "/pending-payments", icon: ClockAlert },
   { title: "Expenses", url: "/expenses", icon: FileText },
   { title: "Salaries", url: "/salaries", icon: DollarSign },
 ];
@@ -115,14 +124,21 @@ export function AppSidebar() {
   const { user } = useAuth();
   const { setOpen, isMobile } = useSidebar();
 
-  const menuItems =
+  const operationsItems =
     user?.role === "admin"
-      ? adminMenuItems
+      ? adminOperationsItems
       : user?.role === "manager"
-      ? managerMenuItems
+      ? managerOperationsItems
       : user?.role === "kitchen"
       ? kitchenMenuItems
       : staffMenuItems;
+
+  const financeItems =
+    user?.role === "admin"
+      ? adminFinanceItems
+      : user?.role === "manager"
+      ? managerFinanceItems
+      : [];
 
   const userInitials = user
     ? `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U"
@@ -149,11 +165,12 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        {/* Operations Section */}
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {operationsItems.map((item) => {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -173,6 +190,43 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Accounts & Finance Section - Only for admin and manager */}
+        {financeItems.length > 0 && (
+          <Collapsible defaultOpen className="group/collapsible">
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="flex w-full items-center justify-between">
+                  Accounts & Finance
+                  <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {financeItems.map((item) => {
+                      const isActive = location === item.url;
+                      return (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton asChild data-active={isActive}>
+                            <Link 
+                              href={item.url} 
+                              data-testid={`link-${item.title.toLowerCase()}`}
+                              onClick={handleNavClick}
+                            >
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-4">
         <div className="flex items-center justify-between gap-3">
