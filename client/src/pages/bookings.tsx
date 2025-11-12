@@ -231,18 +231,25 @@ export default function Bookings() {
     return availableRooms;
   };
 
-  // Helper to get remaining beds for a dormitory room
-  const getRemainingBeds = (roomId: number, isEditMode: boolean = false) => {
-    const availability = isEditMode ? editRoomAvailability : roomAvailability;
-    const roomAvail = availability?.find(a => a.roomId === roomId);
-    
-    // If remainingBeds is explicitly set (even if 0), use it
-    // Otherwise fall back to totalBeds (for rooms with no bookings)
-    if (roomAvail?.remainingBeds !== undefined && roomAvail?.remainingBeds !== null) {
-      return roomAvail.remainingBeds;
-    }
-    return roomAvail?.totalBeds || 0;
-  };
+  // NEW: Fetch bed inventory for selected dormitory room
+  const selectedRoomId = form.watch("roomId");
+  const selectedRoom = rooms?.find(r => r.id === selectedRoomId);
+  
+  const { data: bedInventory } = useQuery({
+    queryKey: ["/api/rooms", selectedRoomId, "bed-inventory", checkInDate, checkOutDate],
+    enabled: !!(selectedRoom?.roomCategory === "dormitory" && selectedRoomId && checkInDate && checkOutDate),
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/rooms/${selectedRoomId}/bed-inventory?checkIn=${checkInDate?.toISOString()}&checkOut=${checkOutDate?.toISOString()}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch bed inventory");
+      return response.json() as Promise<{
+        totalBeds: number;
+        reservedBeds: number;
+        remainingBeds: number;
+      }>;
+    },
+  });
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertBooking) => {
@@ -851,9 +858,8 @@ export default function Bookings() {
                             <SelectContent>
                               {getAvailableRooms(false).map((room) => {
                                 const property = properties?.find(p => p.id === room.propertyId);
-                                const remainingBeds = getRemainingBeds(room.id, false);
                                 const roomDescription = room.roomCategory === "dormitory" 
-                                  ? `Dormitory - ${remainingBeds}/${room.totalBeds || 0} beds available`
+                                  ? "Dormitory"
                                   : (room.roomType || "Standard");
                                 const priceText = room.roomCategory === "dormitory" 
                                   ? `₹${room.pricePerNight}/bed/night`
@@ -870,23 +876,27 @@ export default function Bookings() {
                         </FormItem>
                       )}
                     />
-                    {/* Bed selection for dormitory rooms */}
-                    {(() => {
-                      const selectedRoomId = form.watch("roomId");
-                      const selectedRoom = rooms?.find(r => r.id === selectedRoomId);
-                      if (selectedRoom?.roomCategory === "dormitory") {
-                        const remainingBeds = getRemainingBeds(selectedRoomId, false);
-                        // Only show bed input if there are beds available
-                        if (remainingBeds <= 0) {
-                          return (
-                            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                              <p className="text-sm text-destructive font-medium">
-                                This dormitory room is fully booked for the selected dates. Please choose different dates or another room.
-                              </p>
-                            </div>
-                          );
-                        }
-                        return (
+                    {/* Bed selection for dormitory rooms - NEW SIMPLIFIED VERSION */}
+                    {selectedRoom?.roomCategory === "dormitory" && (
+                      <div className="space-y-3">
+                        {bedInventory && (
+                          <div className="p-3 bg-muted rounded-md">
+                            <p className="text-sm font-medium">
+                              {bedInventory.reservedBeds > 0 
+                                ? `${bedInventory.reservedBeds} of ${bedInventory.totalBeds} beds occupied • ${bedInventory.remainingBeds} beds available`
+                                : `All ${bedInventory.totalBeds} beds available`
+                              }
+                            </p>
+                          </div>
+                        )}
+                        
+                        {bedInventory && bedInventory.remainingBeds <= 0 ? (
+                          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                            <p className="text-sm text-destructive font-medium">
+                              This dormitory room is fully booked for the selected dates. Please choose different dates or another room.
+                            </p>
+                          </div>
+                        ) : (
                           <FormField
                             control={form.control}
                             name="bedsBooked"
@@ -897,7 +907,7 @@ export default function Bookings() {
                                   <Input
                                     type="number"
                                     min="1"
-                                    max={remainingBeds}
+                                    max={bedInventory?.remainingBeds || selectedRoom.totalBeds || 6}
                                     placeholder="Enter number of beds"
                                     value={field.value || ""}
                                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : "")}
@@ -905,16 +915,15 @@ export default function Bookings() {
                                   />
                                 </FormControl>
                                 <p className="text-xs text-muted-foreground">
-                                  Available beds: {remainingBeds}/{selectedRoom.totalBeds || 0} • Price: ₹{selectedRoom.pricePerNight}/bed/night
+                                  Price: ₹{selectedRoom.pricePerNight}/bed/night
                                 </p>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                        );
-                      }
-                      return null;
-                    })()}
+                        )}
+                      </div>
+                    )}
                   </TabsContent>
                   <TabsContent value="group" className="mt-4">
                     <div className="space-y-3">
@@ -952,9 +961,8 @@ export default function Bookings() {
                             {getAvailableRooms(false).map((room) => {
                               const property = properties?.find(p => p.id === room.propertyId);
                               const isSelected = selectedRoomIds.includes(room.id);
-                              const remainingBeds = getRemainingBeds(room.id, false);
                               const roomDescription = room.roomCategory === "dormitory" 
-                                ? `Dormitory (${remainingBeds}/${room.totalBeds || 0} beds)`
+                                ? "Dormitory"
                                 : (room.roomType || "Standard");
                               const priceText = room.roomCategory === "dormitory" 
                                 ? `₹${room.pricePerNight}/bed/night`
@@ -1564,9 +1572,8 @@ export default function Bookings() {
                               return roomsToShow.map((room) => {
                                 const property = properties?.find(p => p.id === room.propertyId);
                                 const isCurrentRoom = editingBooking?.roomId === room.id;
-                                const remainingBeds = getRemainingBeds(room.id, true);
                                 const roomDescription = room.roomCategory === "dormitory" 
-                                  ? `Dormitory - ${remainingBeds}/${room.totalBeds || 0} beds available`
+                                  ? "Dormitory"
                                   : (room.roomType || "Standard");
                                 const priceText = room.roomCategory === "dormitory" 
                                   ? `₹${room.pricePerNight}/bed/night`
@@ -1590,9 +1597,9 @@ export default function Bookings() {
                     const selectedRoomId = editForm.watch("roomId");
                     const selectedRoom = rooms?.find(r => r.id === selectedRoomId);
                     if (selectedRoom?.roomCategory === "dormitory") {
-                      const remainingBeds = getRemainingBeds(selectedRoomId, true);
-                      // Only show bed input if there are beds available
-                      if (remainingBeds <= 0) {
+                      // Show bed selector for dormitory rooms
+                      const maxBeds = selectedRoom.totalBeds || 6;
+                      if (false) { // Temporarily disabled - will be reimplemented with new API
                         return (
                           <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
                             <p className="text-sm text-destructive font-medium">
@@ -1667,9 +1674,8 @@ export default function Bookings() {
                           {getAvailableRooms(true).map((room) => {
                             const property = properties?.find(p => p.id === room.propertyId);
                             const isSelected = editSelectedRoomIds.includes(room.id);
-                            const remainingBeds = getRemainingBeds(room.id, true);
                             const roomDescription = room.roomCategory === "dormitory" 
-                              ? `Dormitory (${remainingBeds}/${room.totalBeds || 0} beds)`
+                              ? "Dormitory"
                               : (room.roomType || "Standard");
                             const priceText = room.roomCategory === "dormitory" 
                               ? `₹${room.pricePerNight}/bed/night`
