@@ -10,6 +10,7 @@ import {
   decimal,
   text,
   boolean,
+  check,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -757,15 +758,19 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLog.$inferSelect;
 
 // Staff Members table - non-app staff for salary tracking
+// Note: staff_members are assigned to a single property (unlike users who can have multiple)
 export const staffMembers = pgTable("staff_members", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: varchar("name", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 20 }),
   email: varchar("email", { length: 255 }),
-  role: varchar("role", { length: 100 }),
-  propertyId: integer("property_id").references(() => properties.id, { onDelete: 'cascade' }),
+  jobTitle: varchar("job_title", { length: 100 }), // Job title/position (NOT RBAC role)
+  propertyId: integer("property_id").notNull().references(() => properties.id, { onDelete: 'cascade' }), // Single property assignment (required)
   joiningDate: timestamp("joining_date"),
   isActive: boolean("is_active").notNull().default(true),
+  baseSalary: decimal("base_salary", { precision: 12, scale: 2 }), // Default monthly salary
+  paymentMethod: varchar("payment_method", { length: 50 }), // Preferred payment method (cash, bank transfer, UPI, etc.)
+  bankDetails: text("bank_details"), // Bank account details if applicable
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -780,12 +785,15 @@ export const insertStaffMemberSchema = createInsertSchema(staffMembers).omit({
   updatedAt: true,
 }).extend({
   joiningDate: z.coerce.date().optional(),
+  baseSalary: z.coerce.number().nonnegative().optional(),
+  propertyId: z.number().int().positive(), // Required - staff members must be assigned to a property
 });
 
 export type InsertStaffMember = z.infer<typeof insertStaffMemberSchema>;
 export type StaffMember = typeof staffMembers.$inferSelect;
 
 // Staff Salaries table - monthly salary records (supports both app users and non-app staff)
+// Constraint: Exactly one of userId or staffMemberId must be set
 export const staffSalaries = pgTable("staff_salaries", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }), // For app users
@@ -804,6 +812,10 @@ export const staffSalaries = pgTable("staff_salaries", {
   index("idx_salary_user").on(table.userId),
   index("idx_salary_staff_member").on(table.staffMemberId),
   index("idx_salary_period").on(table.periodStart, table.periodEnd),
+  check("salary_payee_check", sql`(
+    (user_id IS NOT NULL AND staff_member_id IS NULL) OR
+    (user_id IS NULL AND staff_member_id IS NOT NULL)
+  )`),
 ]);
 
 export const insertStaffSalarySchema = createInsertSchema(staffSalaries).omit({
@@ -813,12 +825,18 @@ export const insertStaffSalarySchema = createInsertSchema(staffSalaries).omit({
 }).extend({
   periodStart: z.coerce.date(),
   periodEnd: z.coerce.date(),
+}).refine((data) => {
+  // Ensure exactly one of userId or staffMemberId is set
+  return (data.userId && !data.staffMemberId) || (!data.userId && data.staffMemberId);
+}, {
+  message: "Exactly one of userId or staffMemberId must be provided",
 });
 
 export type InsertStaffSalary = z.infer<typeof insertStaffSalarySchema>;
 export type StaffSalary = typeof staffSalaries.$inferSelect;
 
 // Salary Advances table - advance payments linked to salary records (supports both app users and non-app staff)
+// Constraint: Exactly one of userId or staffMemberId must be set
 export const salaryAdvances = pgTable("salary_advances", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }), // For app users
@@ -836,6 +854,10 @@ export const salaryAdvances = pgTable("salary_advances", {
   index("idx_advance_user").on(table.userId),
   index("idx_advance_staff_member").on(table.staffMemberId),
   index("idx_advance_status").on(table.repaymentStatus),
+  check("advance_payee_check", sql`(
+    (user_id IS NOT NULL AND staff_member_id IS NULL) OR
+    (user_id IS NULL AND staff_member_id IS NOT NULL)
+  )`),
 ]);
 
 export const insertSalaryAdvanceSchema = createInsertSchema(salaryAdvances).omit({
@@ -843,6 +865,11 @@ export const insertSalaryAdvanceSchema = createInsertSchema(salaryAdvances).omit
   createdAt: true,
 }).extend({
   advanceDate: z.coerce.date(),
+}).refine((data) => {
+  // Ensure exactly one of userId or staffMemberId is set
+  return (data.userId && !data.staffMemberId) || (!data.userId && data.staffMemberId);
+}, {
+  message: "Exactly one of userId or staffMemberId must be provided",
 });
 
 export type InsertSalaryAdvance = z.infer<typeof insertSalaryAdvanceSchema>;

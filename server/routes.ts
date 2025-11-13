@@ -3234,6 +3234,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Staff Member endpoints (non-app staff) - Admin/Manager only
+  app.get("/api/staff-members", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { propertyId } = req.query;
+
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      let staffMembers;
+      if (propertyId) {
+        staffMembers = await storage.getStaffMembersByProperty(parseInt(propertyId as string));
+      } else if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (propertyIds.length === 0) {
+          return res.json([]);
+        }
+        const allMembers = await storage.getAllStaffMembers();
+        staffMembers = allMembers.filter(m => propertyIds.includes(m.propertyId));
+      } else {
+        staffMembers = await storage.getAllStaffMembers();
+      }
+
+      res.json(staffMembers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/staff-members/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const member = await storage.getStaffMember(parseInt(req.params.id));
+      if (!member) {
+        return res.status(404).json({ message: "Staff member not found" });
+      }
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (!propertyIds.includes(member.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      }
+
+      res.json(member);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/staff-members", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { insertStaffMemberSchema } = await import("@shared/schema");
+      const validatedData = insertStaffMemberSchema.parse(req.body);
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (!propertyIds.includes(validatedData.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized. You can only add staff for your assigned properties." });
+        }
+      }
+
+      const member = await storage.createStaffMember(validatedData);
+      res.json(member);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/staff-members/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const member = await storage.getStaffMember(parseInt(req.params.id));
+      if (!member) {
+        return res.status(404).json({ message: "Staff member not found" });
+      }
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (!propertyIds.includes(member.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+        if (req.body.propertyId && !propertyIds.includes(req.body.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized. You can only assign staff to your properties." });
+        }
+      }
+
+      const updated = await storage.updateStaffMember(parseInt(req.params.id), req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/staff-members/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!['admin', 'manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const member = await storage.getStaffMember(parseInt(req.params.id));
+      if (!member) {
+        return res.status(404).json({ message: "Staff member not found" });
+      }
+
+      if (user.role === 'manager') {
+        const propertyIds = user.assignedPropertyIds || [];
+        if (!propertyIds.includes(member.propertyId)) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+      }
+
+      await storage.deleteStaffMember(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Staff Salary endpoints (Admin/Manager only)
   app.get("/api/salaries", isAuthenticated, async (req, res) => {
     try {

@@ -20,6 +20,7 @@ import {
   propertyExpenses,
   expenseCategories,
   bankTransactions,
+  staffMembers,
   staffSalaries,
   salaryAdvances,
   salaryPayments,
@@ -65,6 +66,8 @@ import {
   type InsertExpenseCategory,
   type BankTransaction,
   type InsertBankTransaction,
+  type StaffMember,
+  type InsertStaffMember,
   type StaffSalary,
   type InsertStaffSalary,
   type SalaryAdvance,
@@ -243,6 +246,14 @@ export interface IStorage {
 
   // Financial Reports
   getPropertyFinancials(propertyId: number, startDate?: Date, endDate?: Date): Promise<any>;
+
+  // Staff Member operations (non-app staff)
+  getAllStaffMembers(): Promise<StaffMember[]>;
+  getStaffMembersByProperty(propertyId: number): Promise<StaffMember[]>;
+  getStaffMember(id: number): Promise<StaffMember | undefined>;
+  createStaffMember(member: InsertStaffMember): Promise<StaffMember>;
+  updateStaffMember(id: number, member: Partial<InsertStaffMember>): Promise<StaffMember>;
+  deleteStaffMember(id: number): Promise<void>;
 
   // Staff Salary operations
   getAllSalaries(): Promise<StaffSalary[]>;
@@ -1809,6 +1820,45 @@ export class DatabaseStorage implements IStorage {
       writeOffs: 0, // TODO: Implement write-offs tracking
       generatedAt: now.toISOString(),
     };
+  }
+
+  // Staff Member operations (non-app staff)
+  async getAllStaffMembers(): Promise<StaffMember[]> {
+    return await db.select().from(staffMembers).orderBy(desc(staffMembers.createdAt));
+  }
+
+  async getStaffMembersByProperty(propertyId: number): Promise<StaffMember[]> {
+    return await db
+      .select()
+      .from(staffMembers)
+      .where(eq(staffMembers.propertyId, propertyId))
+      .orderBy(desc(staffMembers.createdAt));
+  }
+
+  async getStaffMember(id: number): Promise<StaffMember | undefined> {
+    const [member] = await db.select().from(staffMembers).where(eq(staffMembers.id, id));
+    return member;
+  }
+
+  async createStaffMember(member: InsertStaffMember): Promise<StaffMember> {
+    const [created] = await db.insert(staffMembers).values(member).returning();
+    eventBus.emit('staff-member:created', created);
+    return created;
+  }
+
+  async updateStaffMember(id: number, member: Partial<InsertStaffMember>): Promise<StaffMember> {
+    const [updated] = await db
+      .update(staffMembers)
+      .set({ ...member, updatedAt: new Date() })
+      .where(eq(staffMembers.id, id))
+      .returning();
+    eventBus.emit('staff-member:updated', updated);
+    return updated;
+  }
+
+  async deleteStaffMember(id: number): Promise<void> {
+    await db.delete(staffMembers).where(eq(staffMembers.id, id));
+    eventBus.emit('staff-member:deleted', { id });
   }
 
   // Staff Salary operations
