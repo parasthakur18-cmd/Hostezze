@@ -1696,7 +1696,7 @@ export class DatabaseStorage implements IStorage {
       .from(bills)
       .where(and(
         eq(bills.paymentStatus, "pending"),
-        sql`payment_due_date IS NOT NULL AND payment_due_date < CURRENT_DATE`
+        sql`due_date IS NOT NULL AND due_date < CURRENT_DATE`
       ));
 
     // Calculate aging buckets
@@ -1705,7 +1705,7 @@ export class DatabaseStorage implements IStorage {
       .from(bills)
       .where(and(
         eq(bills.paymentStatus, "pending"),
-        sql`(payment_due_date IS NULL OR payment_due_date >= CURRENT_DATE)`
+        sql`(due_date IS NULL OR due_date >= CURRENT_DATE)`
       ));
 
     const [day1to7Bucket] = await db
@@ -1713,7 +1713,7 @@ export class DatabaseStorage implements IStorage {
       .from(bills)
       .where(and(
         eq(bills.paymentStatus, "pending"),
-        sql`payment_due_date IS NOT NULL AND CURRENT_DATE - payment_due_date BETWEEN 1 AND 7`
+        sql`due_date IS NOT NULL AND due_date BETWEEN CURRENT_DATE - INTERVAL '7 days' AND CURRENT_DATE - INTERVAL '1 day'`
       ));
 
     const [day8to30Bucket] = await db
@@ -1721,7 +1721,7 @@ export class DatabaseStorage implements IStorage {
       .from(bills)
       .where(and(
         eq(bills.paymentStatus, "pending"),
-        sql`payment_due_date IS NOT NULL AND CURRENT_DATE - payment_due_date BETWEEN 8 AND 30`
+        sql`due_date IS NOT NULL AND due_date BETWEEN CURRENT_DATE - INTERVAL '30 days' AND CURRENT_DATE - INTERVAL '8 days'`
       ));
 
     const [over30Bucket] = await db
@@ -1729,7 +1729,7 @@ export class DatabaseStorage implements IStorage {
       .from(bills)
       .where(and(
         eq(bills.paymentStatus, "pending"),
-        sql`payment_due_date IS NOT NULL AND CURRENT_DATE - payment_due_date > 30`
+        sql`due_date IS NOT NULL AND due_date < CURRENT_DATE - INTERVAL '30 days'`
       ));
 
     // Property breakdown
@@ -1737,30 +1737,28 @@ export class DatabaseStorage implements IStorage {
       .select({
         id: properties.id,
         name: properties.name,
-        pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' THEN b.balance_amount ELSE 0 END), 0)`,
-        overdueAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' AND b.payment_due_date IS NOT NULL AND b.payment_due_date < CURRENT_DATE THEN b.balance_amount ELSE 0 END), 0)`,
-        count: sql<number>`COUNT(CASE WHEN b.payment_status = 'pending' THEN 1 END)::int`,
+        pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN ${bills.paymentStatus} = 'pending' THEN ${bills.balanceAmount} ELSE 0 END), 0)`,
+        overdueAmount: sql<string>`COALESCE(SUM(CASE WHEN ${bills.paymentStatus} = 'pending' AND ${bills.dueDate} IS NOT NULL AND ${bills.dueDate} < CURRENT_DATE THEN ${bills.balanceAmount} ELSE 0 END), 0)`,
+        count: sql<number>`COUNT(CASE WHEN ${bills.paymentStatus} = 'pending' THEN 1 END)::int`,
       })
       .from(properties)
       .leftJoin(rooms, eq(rooms.propertyId, properties.id))
       .leftJoin(bookings, eq(bookings.roomId, rooms.id))
-      .leftJoin(bills, sql`b.booking_id = ${bookings.id}`)
-      .groupBy(properties.id, properties.name)
-      .as('property_breakdown');
+      .leftJoin(bills, eq(bills.bookingId, bookings.id))
+      .groupBy(properties.id, properties.name);
 
     // Travel agent breakdown
     const agentBreakdown = await db
       .select({
         id: sql<number>`COALESCE(${bookings.travelAgentId}, 0)`,
         name: sql<string>`COALESCE((SELECT name FROM travel_agents ta WHERE ta.id = ${bookings.travelAgentId}), 'Direct/Walk-in')`,
-        pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' THEN b.balance_amount ELSE 0 END), 0)`,
-        overdueAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' AND b.payment_due_date IS NOT NULL AND b.payment_due_date < CURRENT_DATE THEN b.balance_amount ELSE 0 END), 0)`,
-        count: sql<number>`COUNT(CASE WHEN b.payment_status = 'pending' THEN 1 END)::int`,
+        pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN ${bills.paymentStatus} = 'pending' THEN ${bills.balanceAmount} ELSE 0 END), 0)`,
+        overdueAmount: sql<string>`COALESCE(SUM(CASE WHEN ${bills.paymentStatus} = 'pending' AND ${bills.dueDate} IS NOT NULL AND ${bills.dueDate} < CURRENT_DATE THEN ${bills.balanceAmount} ELSE 0 END), 0)`,
+        count: sql<number>`COUNT(CASE WHEN ${bills.paymentStatus} = 'pending' THEN 1 END)::int`,
       })
       .from(bills)
       .leftJoin(bookings, eq(bills.bookingId, bookings.id))
-      .groupBy(bookings.travelAgentId)
-      .as('agent_breakdown');
+      .groupBy(bookings.travelAgentId);
 
     const collectionRate = totalBillsCount.count > 0
       ? Math.round((paidBillsCount.count / totalBillsCount.count) * 100)
