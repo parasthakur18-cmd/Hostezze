@@ -318,6 +318,44 @@ export default function Bookings() {
     },
   });
 
+  // Handler for status changes with ID validation for check-in
+  const handleStatusChange = (booking: Booking, newStatus: string) => {
+    // If changing to checked-in, validate guest has ID proof
+    if (newStatus === "checked-in") {
+      const guest = guests?.find(g => g.id === booking.guestId);
+      
+      if (!guest) {
+        toast({
+          title: "Guest Not Found",
+          description: "Cannot check in without valid guest information",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if guest has ID proof
+      if (!guest.idProofImage) {
+        // Show alert toast
+        toast({
+          title: "ID Proof Required",
+          description: "Guest ID proof must be captured before check-in. Please upload the ID to proceed.",
+          variant: "destructive",
+        });
+        
+        // Open check-in dialog to capture ID
+        setCheckinBookingId(booking.id);
+        setCheckinDialogOpen(true);
+        return;
+      }
+    }
+
+    // Proceed with status change
+    updateStatusMutation.mutate({
+      id: booking.id,
+      status: newStatus as "pending" | "confirmed" | "checked-in" | "checked-out" | "cancelled"
+    });
+  };
+
   const deleteBookingMutation = useMutation({
     mutationFn: async (id: number) => {
       return await apiRequest(`/api/bookings/${id}`, "DELETE");
@@ -1407,12 +1445,7 @@ export default function Bookings() {
                           <div className="flex items-center justify-end gap-2">
                             <Select
                               value={booking.status}
-                              onValueChange={(newStatus) => {
-                                updateStatusMutation.mutate({
-                                  id: booking.id,
-                                  status: newStatus as "pending" | "confirmed" | "checked-in" | "checked-out" | "cancelled"
-                                });
-                              }}
+                              onValueChange={(newStatus) => handleStatusChange(booking, newStatus)}
                             >
                               <SelectTrigger className="w-[140px]" data-testid={`select-status-${booking.id}`}>
                                 <SelectValue />
@@ -2070,7 +2103,7 @@ export default function Bookings() {
               Cancel
             </Button>
             <Button
-              onClick={() => {
+              onClick={async () => {
                 if (!checkinIdProof) {
                   toast({
                     title: "ID Required",
@@ -2081,13 +2114,42 @@ export default function Bookings() {
                 }
                 
                 if (checkinBookingId) {
-                  updateStatusMutation.mutate({ 
-                    id: checkinBookingId, 
-                    status: "checked-in" 
-                  });
-                  setCheckinDialogOpen(false);
-                  setCheckinBookingId(null);
-                  setCheckinIdProof(null);
+                  try {
+                    // Find the booking to get guest ID
+                    const booking = bookings?.find(b => b.id === checkinBookingId);
+                    if (!booking) {
+                      toast({
+                        title: "Error",
+                        description: "Booking not found",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    // Update guest's ID proof
+                    await apiRequest(`/api/guests/${booking.guestId}`, "PATCH", {
+                      idProofImage: checkinIdProof
+                    });
+
+                    // Invalidate guests query to refresh data
+                    queryClient.invalidateQueries({ queryKey: ["/api/guests"] });
+
+                    // Now proceed with check-in
+                    updateStatusMutation.mutate({ 
+                      id: checkinBookingId, 
+                      status: "checked-in" 
+                    });
+                    
+                    setCheckinDialogOpen(false);
+                    setCheckinBookingId(null);
+                    setCheckinIdProof(null);
+                  } catch (error: any) {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Failed to update guest information",
+                      variant: "destructive",
+                    });
+                  }
                 }
               }}
               disabled={!checkinIdProof}

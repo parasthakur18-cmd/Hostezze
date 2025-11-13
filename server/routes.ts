@@ -1340,8 +1340,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // If trying to check in, validate the check-in date
+      // If trying to check in, validate the check-in date and guest ID proof
       if (status === "checked-in") {
+        // Validate guest has ID proof
+        const guest = await storage.getGuest(currentBooking.guestId);
+        if (!guest) {
+          return res.status(400).json({ 
+            message: "Guest not found. Cannot complete check-in." 
+          });
+        }
+        
+        if (!guest.idProofImage) {
+          return res.status(400).json({ 
+            message: "Guest ID proof is required before check-in. Please upload the guest's ID proof to proceed." 
+          });
+        }
+
         // Check if check-in date is today or in the past
         const checkInDate = new Date(currentBooking.checkInDate);
         const today = new Date();
