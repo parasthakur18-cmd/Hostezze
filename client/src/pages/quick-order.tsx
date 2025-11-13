@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Minus, X, Check, Phone, Store, Hotel, ArrowRight, ArrowLeft } from "lucide-react";
+import { Plus, Minus, X, Check, Phone, Store, Hotel, ArrowRight, ArrowLeft, Search, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ export default function QuickOrder() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [specialInstructions, setSpecialInstructions] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast} = useToast();
 
   const { data: menuItems, isLoading: menuLoading } = useQuery<MenuItem[]>({
@@ -96,6 +97,24 @@ export default function QuickOrder() {
   const calculateTotal = () => {
     return cart.reduce((sum, item) => sum + parseFloat(item.price as string) * item.quantity, 0);
   };
+
+  // Helper to get item quantity in cart
+  const getItemQuantityInCart = (itemId: number) => {
+    const item = cart.find((i) => i.id === itemId);
+    return item ? item.quantity : 0;
+  };
+
+  // Filter menu items by search term
+  const filteredMenuItems = useMemo(() => {
+    if (!menuItems) return [];
+    if (!searchTerm.trim()) return menuItems;
+    
+    const searchLower = searchTerm.toLowerCase().trim();
+    return menuItems.filter(item => 
+      item.name.toLowerCase().includes(searchLower) ||
+      (item.description && item.description.toLowerCase().includes(searchLower))
+    );
+  }, [menuItems, searchTerm]);
 
   const handleNextStep = () => {
     if (step === 1 && !orderType) {
@@ -204,8 +223,8 @@ export default function QuickOrder() {
     orderMutation.mutate(orderData);
   };
 
-  // Group by category
-  const categorizedItems = menuItems?.reduce((acc, item) => {
+  // Group by category (using filtered items)
+  const categorizedItems = filteredMenuItems?.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
     }
@@ -452,37 +471,111 @@ export default function QuickOrder() {
               <CardHeader>
                 <CardTitle>Step 3: Select Menu Items</CardTitle>
               </CardHeader>
+              <CardContent>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search menu items..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-10"
+                    aria-label="Search menu items"
+                    data-testid="input-quick-order-search"
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setSearchTerm("")}
+                      aria-label="Clear search"
+                      data-testid="button-quick-order-clear-search"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
             </Card>
 
-            {categorizedItems && Object.entries(categorizedItems).map(([category, items]) => (
-              <Card key={category}>
-                <CardHeader>
-                  <CardTitle className="capitalize text-lg">{category}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {items
-                      .filter((item) => item.isAvailable)
-                      .map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between p-3 border rounded-lg hover-elevate cursor-pointer"
-                          onClick={() => addToCart(item)}
-                          data-testid={`quick-order-item-${item.id}`}
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-sm text-muted-foreground">₹{item.price}</p>
-                          </div>
-                          <Button size="icon" variant="ghost" data-testid={`button-quick-add-${item.id}`}>
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                  </div>
+            {categorizedItems && Object.keys(categorizedItems).length > 0 ? (
+              Object.entries(categorizedItems).map(([category, items]) => (
+                <Card key={category}>
+                  <CardHeader>
+                    <CardTitle className="capitalize text-lg">{category}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {items
+                        .filter((item) => item.isAvailable)
+                        .map((item) => {
+                          const quantity = getItemQuantityInCart(item.id);
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between p-3 border rounded-lg hover-elevate"
+                              data-testid={`quick-order-item-${item.id}`}
+                            >
+                              <div className="flex-1">
+                                <p className="font-medium">{item.name}</p>
+                                <p className="text-sm text-muted-foreground">₹{item.price}</p>
+                              </div>
+                              {quantity > 0 ? (
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8"
+                                    onClick={() => updateQuantity(item.id, -1)}
+                                    data-testid={`button-quick-decrease-${item.id}`}
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <span className="w-8 text-center font-mono text-sm">{quantity}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8"
+                                    onClick={() => updateQuantity(item.id, 1)}
+                                    data-testid={`button-quick-increase-${item.id}`}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  onClick={() => addToCart(item)}
+                                  data-testid={`button-quick-add-${item.id}`}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : searchTerm && menuItems ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">No menu items found matching "{searchTerm}"</p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSearchTerm("")}
+                    className="mt-4"
+                    data-testid="button-clear-search-empty"
+                  >
+                    Clear Search
+                  </Button>
                 </CardContent>
               </Card>
-            ))}
+            ) : null}
           </div>
 
           {/* Order Summary - Right Side */}
