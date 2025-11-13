@@ -2117,6 +2117,9 @@ function CheckoutBillSummary({
   const { toast } = useToast();
   const [includeGst, setIncludeGst] = useState<boolean>(false); // Default OFF (0%)
   const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(false); // Default OFF (0%)
+  const [paymentStatus, setPaymentStatus] = useState<"paid" | "pending">("paid");
+  const [dueDate, setDueDate] = useState<string>("");
+  const [pendingReason, setPendingReason] = useState<string>("");
 
   // Fetch booking details
   const { data: bookings } = useQuery<Booking[]>({
@@ -2227,7 +2230,10 @@ function CheckoutBillSummary({
   const handleCheckout = () => {
     checkoutMutation.mutate({
       bookingId,
-      paymentMethod,
+      paymentMethod: paymentStatus === "paid" ? paymentMethod : null,
+      paymentStatus,
+      dueDate: paymentStatus === "pending" && dueDate ? dueDate : null,
+      pendingReason: paymentStatus === "pending" ? pendingReason : null,
       includeGst,
       includeServiceCharge,
     });
@@ -2366,21 +2372,63 @@ function CheckoutBillSummary({
         </div>
       </div>
 
-      {/* Payment Method */}
+      {/* Payment Status */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Payment Method</label>
-        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-          <SelectTrigger data-testid="select-checkout-payment-method">
+        <label className="text-sm font-medium">Payment Status</label>
+        <Select value={paymentStatus} onValueChange={(value) => setPaymentStatus(value as "paid" | "pending")}>
+          <SelectTrigger data-testid="select-payment-status">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="cash">Cash</SelectItem>
-            <SelectItem value="card">Card</SelectItem>
-            <SelectItem value="upi">UPI</SelectItem>
-            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
+      {/* Payment Method - Only show when Paid */}
+      {paymentStatus === "paid" && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Payment Method</label>
+          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+            <SelectTrigger data-testid="select-checkout-payment-method">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">Cash</SelectItem>
+              <SelectItem value="card">Card</SelectItem>
+              <SelectItem value="upi">UPI</SelectItem>
+              <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Pending Payment Fields - Only show when Pending */}
+      {paymentStatus === "pending" && (
+        <div className="space-y-4 border rounded-lg p-4 bg-amber-50 dark:bg-amber-950/20">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Due Date (Optional)</label>
+            <input
+              type="date"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              data-testid="input-due-date"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Reason for Pending Payment (Optional)</label>
+            <textarea
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={pendingReason}
+              onChange={(e) => setPendingReason(e.target.value)}
+              placeholder="e.g., Monthly billing, Agent payment, etc."
+              data-testid="input-pending-reason"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <DialogFooter>
