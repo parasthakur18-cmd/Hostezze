@@ -205,7 +205,6 @@ export default function Billing() {
     let matchesAgentFilter = true;
     if (agentFilter !== "all") {
       const booking = allBookings.find(b => b.id === bill.bookingId);
-      console.log('Bill:', bill.id, 'BookingId:', bill.bookingId, 'Booking:', booking, 'TravelAgentId:', booking?.travelAgentId, 'Filter:', agentFilter, 'Match:', booking?.travelAgentId === agentFilter);
       matchesAgentFilter = booking?.travelAgentId === agentFilter;
     }
     
@@ -285,7 +284,7 @@ export default function Billing() {
                     onValueChange={(value) => setPrimaryBookingId(parseInt(value))}
                   >
                     {selectedBookingIds.map((bookingId) => {
-                      const booking = bookings.find(b => b.id === bookingId);
+                      const booking = activeBookings.find((b: any) => b.id === bookingId);
                       if (!booking) return null;
                       return (
                         <div

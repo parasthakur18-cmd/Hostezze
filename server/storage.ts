@@ -1645,6 +1645,14 @@ export class DatabaseStorage implements IStorage {
       .from(bills)
       .where(gte(bills.createdAt, currentMonth));
 
+    const [monthlyPaidResult] = await db
+      .select({ total: sql<string>`COALESCE(SUM(total_amount), 0)` })
+      .from(bills)
+      .where(and(
+        gte(bills.createdAt, currentMonth),
+        eq(bills.paymentStatus, "paid")
+      ));
+
     const popularRoomTypes = await db
       .select({
         type: rooms.roomType,
@@ -1664,6 +1672,100 @@ export class DatabaseStorage implements IStorage {
       ? Math.round((repeatGuestsCount.count / guestsCount.count) * 100)
       : 0;
 
+    // Calculate pending receivables metrics
+    const now = new Date();
+    
+    // Total pending and total bills for collection rate
+    const [pendingResult] = await db
+      .select({ total: sql<string>`COALESCE(SUM(balance_amount), 0)`, count: sql<number>`count(*)::int` })
+      .from(bills)
+      .where(eq(bills.paymentStatus, "pending"));
+
+    const [totalBillsCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(bills);
+
+    const [paidBillsCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(bills)
+      .where(eq(bills.paymentStatus, "paid"));
+
+    // Calculate overdue amount (pending bills past their due date)
+    const [overdueResult] = await db
+      .select({ total: sql<string>`COALESCE(SUM(balance_amount), 0)` })
+      .from(bills)
+      .where(and(
+        eq(bills.paymentStatus, "pending"),
+        sql`payment_due_date IS NOT NULL AND payment_due_date < CURRENT_DATE`
+      ));
+
+    // Calculate aging buckets
+    const [currentBucket] = await db
+      .select({ total: sql<string>`COALESCE(SUM(balance_amount), 0)` })
+      .from(bills)
+      .where(and(
+        eq(bills.paymentStatus, "pending"),
+        sql`(payment_due_date IS NULL OR payment_due_date >= CURRENT_DATE)`
+      ));
+
+    const [day1to7Bucket] = await db
+      .select({ total: sql<string>`COALESCE(SUM(balance_amount), 0)` })
+      .from(bills)
+      .where(and(
+        eq(bills.paymentStatus, "pending"),
+        sql`payment_due_date IS NOT NULL AND CURRENT_DATE - payment_due_date BETWEEN 1 AND 7`
+      ));
+
+    const [day8to30Bucket] = await db
+      .select({ total: sql<string>`COALESCE(SUM(balance_amount), 0)` })
+      .from(bills)
+      .where(and(
+        eq(bills.paymentStatus, "pending"),
+        sql`payment_due_date IS NOT NULL AND CURRENT_DATE - payment_due_date BETWEEN 8 AND 30`
+      ));
+
+    const [over30Bucket] = await db
+      .select({ total: sql<string>`COALESCE(SUM(balance_amount), 0)` })
+      .from(bills)
+      .where(and(
+        eq(bills.paymentStatus, "pending"),
+        sql`payment_due_date IS NOT NULL AND CURRENT_DATE - payment_due_date > 30`
+      ));
+
+    // Property breakdown
+    const propertyBreakdown = await db
+      .select({
+        id: properties.id,
+        name: properties.name,
+        pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' THEN b.balance_amount ELSE 0 END), 0)`,
+        overdueAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' AND b.payment_due_date IS NOT NULL AND b.payment_due_date < CURRENT_DATE THEN b.balance_amount ELSE 0 END), 0)`,
+        count: sql<number>`COUNT(CASE WHEN b.payment_status = 'pending' THEN 1 END)::int`,
+      })
+      .from(properties)
+      .leftJoin(rooms, eq(rooms.propertyId, properties.id))
+      .leftJoin(bookings, eq(bookings.roomId, rooms.id))
+      .leftJoin(bills, sql`b.booking_id = ${bookings.id}`)
+      .groupBy(properties.id, properties.name)
+      .as('property_breakdown');
+
+    // Travel agent breakdown
+    const agentBreakdown = await db
+      .select({
+        id: sql<number>`COALESCE(${bookings.travelAgentId}, 0)`,
+        name: sql<string>`COALESCE((SELECT name FROM travel_agents ta WHERE ta.id = ${bookings.travelAgentId}), 'Direct/Walk-in')`,
+        pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' THEN b.balance_amount ELSE 0 END), 0)`,
+        overdueAmount: sql<string>`COALESCE(SUM(CASE WHEN b.payment_status = 'pending' AND b.payment_due_date IS NOT NULL AND b.payment_due_date < CURRENT_DATE THEN b.balance_amount ELSE 0 END), 0)`,
+        count: sql<number>`COUNT(CASE WHEN b.payment_status = 'pending' THEN 1 END)::int`,
+      })
+      .from(bills)
+      .leftJoin(bookings, eq(bills.bookingId, bookings.id))
+      .groupBy(bookings.travelAgentId)
+      .as('agent_breakdown');
+
+    const collectionRate = totalBillsCount.count > 0
+      ? Math.round((paidBillsCount.count / totalBillsCount.count) * 100)
+      : 0;
+
     return {
       totalRevenue: parseFloat(totalRevenueResult.total),
       paidRevenue: parseFloat(paidRevenueResult.total),
@@ -1678,6 +1780,36 @@ export class DatabaseStorage implements IStorage {
       avgRoomRate: parseFloat(avgRoomRateResult.avg),
       monthlyRevenue: parseFloat(monthlyRevenueResult.total),
       popularRoomTypes,
+      pendingReceivables: {
+        totalPending: parseFloat(pendingResult.total),
+        totalOverdue: parseFloat(overdueResult.total),
+        collectionRate,
+        agingBuckets: {
+          current: parseFloat(currentBucket.total),
+          day1to7: parseFloat(day1to7Bucket.total),
+          day8to30: parseFloat(day8to30Bucket.total),
+          over30: parseFloat(over30Bucket.total),
+        },
+        propertyBreakdown: propertyBreakdown.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          pendingAmount: parseFloat(p.pendingAmount),
+          overdueAmount: parseFloat(p.overdueAmount),
+          count: p.count,
+        })),
+        agentBreakdown: agentBreakdown.map((a: any) => ({
+          id: a.id,
+          name: a.name,
+          pendingAmount: parseFloat(a.pendingAmount),
+          overdueAmount: parseFloat(a.overdueAmount),
+          count: a.count,
+        })),
+      },
+      period: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      comparisonPeriod: undefined,
+      cashCollected: parseFloat(monthlyPaidResult.total),
+      writeOffs: 0, // TODO: Implement write-offs tracking
+      generatedAt: now.toISOString(),
     };
   }
 

@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, TrendingUp, Users, Hotel, IndianRupee, Building2 } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Hotel, IndianRupee, Building2, AlertCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { AnalyticsResponse } from "@shared/schema";
 
 export default function Analytics() {
-  const { data: analytics, isLoading } = useQuery({
+  const { data: analytics, isLoading } = useQuery<AnalyticsResponse>({
     queryKey: ["/api/analytics"],
   });
 
@@ -123,6 +125,189 @@ export default function Analytics() {
           );
         })}
       </div>
+
+      {/* Pending Receivables Section */}
+      {analytics?.pendingReceivables && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold font-serif mb-4">Pending Receivables</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Pending
+                </CardTitle>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
+                  <Clock className="h-5 w-5 text-amber-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-mono mb-1" data-testid="metric-total-pending">
+                  ₹{analytics.pendingReceivables.totalPending.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Accounts receivable</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Overdue Amount
+                </CardTitle>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-mono mb-1" data-testid="metric-total-overdue">
+                  ₹{analytics.pendingReceivables.totalOverdue.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Past due date</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Collection Rate
+                </CardTitle>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chart-5/10">
+                  <TrendingUp className="h-5 w-5 text-chart-5" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-mono mb-1" data-testid="metric-collection-rate">
+                  {analytics.pendingReceivables.collectionRate}%
+                </div>
+                <p className="text-xs text-muted-foreground">Bills paid on time</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-elevate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Cash Collected
+                </CardTitle>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chart-5/10">
+                  <IndianRupee className="h-5 w-5 text-chart-5" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-mono mb-1" data-testid="metric-cash-collected">
+                  ₹{analytics.cashCollected.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">This month</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Aging Buckets */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Aging Analysis</CardTitle>
+                <CardDescription>Breakdown by payment age</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium">Current (Not Due)</span>
+                      <span className="text-sm font-mono">₹{analytics.pendingReceivables.agingBuckets.current.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-chart-5"
+                        style={{
+                          width: `${(analytics.pendingReceivables.agingBuckets.current / (analytics.pendingReceivables.totalPending || 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium">1-7 Days Overdue</span>
+                      <span className="text-sm font-mono">₹{analytics.pendingReceivables.agingBuckets.day1to7.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-amber-500"
+                        style={{
+                          width: `${(analytics.pendingReceivables.agingBuckets.day1to7 / (analytics.pendingReceivables.totalPending || 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium">8-30 Days Overdue</span>
+                      <span className="text-sm font-mono">₹{analytics.pendingReceivables.agingBuckets.day8to30.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-orange-500"
+                        style={{
+                          width: `${(analytics.pendingReceivables.agingBuckets.day8to30 / (analytics.pendingReceivables.totalPending || 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium">Over 30 Days</span>
+                      <span className="text-sm font-mono">₹{analytics.pendingReceivables.agingBuckets.over30.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-destructive"
+                        style={{
+                          width: `${(analytics.pendingReceivables.agingBuckets.over30 / (analytics.pendingReceivables.totalPending || 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Travel Agent Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle>By Travel Agent</CardTitle>
+                <CardDescription>Pending payments by agent</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Agent</TableHead>
+                      <TableHead className="text-right">Pending</TableHead>
+                      <TableHead className="text-right">Count</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {analytics.pendingReceivables.agentBreakdown
+                      .filter((agent: any) => agent.pendingAmount > 0)
+                      .map((agent: any) => (
+                        <TableRow key={agent.id}>
+                          <TableCell className="font-medium">{agent.name}</TableCell>
+                          <TableCell className="text-right font-mono">₹{agent.pendingAmount.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{agent.count}</TableCell>
+                        </TableRow>
+                      ))}
+                    {analytics.pendingReceivables.agentBreakdown.filter((a: any) => a.pendingAmount > 0).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground">
+                          No pending payments
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

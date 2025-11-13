@@ -930,6 +930,7 @@ export interface AnalyticsResponse {
   avgRoomRate: number;
   activeProperties: number;
   repeatGuestRate: number;
+  popularRoomTypes: Array<{ type: string; bookings: number }>;
   
   // Pending receivables metrics
   pendingReceivables: PendingReceivables;
