@@ -26,6 +26,8 @@ The frontend is built with **React 18**, **TypeScript** (Vite), **Wouter** for r
 -   **Payment & Communication System**: Tracks advance payments, sends guest messages, and logs communications.
 -   **Restaurant & Order Management**: Manages restaurant operations, order tracking, menu items, and food order reporting.
 -   **My Rasoi Menu System**: Provides comprehensive menu management including categories (with drag-and-drop reordering), items (with images, descriptions, variants, and add-ons), and a staff interface for CRUD operations. Supports a mobile-optimized room service menu with QR code integration and full variant support.
+-   **Enhanced Menu Ordering UX**: Both public and staff menu pages feature live search filtering (by item name and description) with clearable input, and inline quantity controls. Simple items show +/- buttons directly on the menu when in cart; complex items (with variants/add-ons) display total quantity badges and reopen customization sheets for editing. Search results update category counts dynamically and show an empty state when no items match.
+-   **Quick Order Entry System**: Staff-facing 3-step wizard for creating room service and restaurant orders with the same search and quantity control features as the public menu, streamlining order entry workflow.
 -   **Room-Specific QR Codes**: Generates unique QR codes per room for contactless room service ordering, pre-filling room numbers.
 -   **Public Menu Ordering**: Supports room service and walk-in café orders via a public menu page without authentication.
 -   **In-House Guest Café Orders**: Links café orders to room bills for in-house guests.
